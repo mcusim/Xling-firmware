@@ -33,6 +33,7 @@
 #include "mcusim/avr-gcc/avr/drivers/display/sh1106.h"
 #include "mcusim/avr-gcc/avr/drivers/display/sh1106_graphics.h"
 #include "xling/graphics/xling.h"
+#include "xling/graphics/luci.h"
 
 #define SET_BIT(byte, bit)	((byte)|=(1U<<(bit)))
 #define CLEAR_BIT(byte, bit)	((byte)&=(uint8_t)~(1U<<(bit)))
@@ -55,6 +56,15 @@ static struct MSIM_SH1106DisplayConf conf = {
 	.twi_addr = 0x3D,
 };
 
+/* SH1106-based display configuration for TWI (bit-bang) interface. */
+//static struct MSIM_SH1106DisplayConf conf = {
+//	.twi_port = &PORTC,
+//	.twi_ddr = &DDRC,
+//	.sda = PC4,
+//	.scl = PC5,
+//	.twi_addr = 0x3D,
+//};
+
 static volatile uint32_t ms = 0;
 static struct MSIM_SH1106 *display;
 
@@ -63,9 +73,9 @@ static void	timer2_init(void);
 int main(void)
 {
 	char textbuf[32];
-	uint8_t img = 1;
+//	uint8_t img = 1;
 	uint32_t delay_ms = 1;
-	const uint8_t *ptr = oled_xling3;
+	const uint8_t *ptr = oled_luci;
 
 	/* Configure pins as input/output ones. */
 	DDRD = 0x00;				/* all to input */
@@ -128,41 +138,24 @@ int main(void)
 		delay_ms = ms - delay_ms;
 
 		/* Draw FPS */
-		snprintf((char *)&textbuf[0], sizeof textbuf, "%lu.%lu",
+		snprintf((char *)&textbuf[0], sizeof textbuf, "%lu.%lu FPS",
 		         1000 / (delay_ms/FRAME_ITER),
 		         1000 % (delay_ms/FRAME_ITER));
 		MSIM_SH1106_Clean(display);
-		MSIM_SH1106_SetPage(display, 5);
+		MSIM_SH1106_SetPage(display, 0);
 		MSIM_SH1106_SetColumn(display, 2);
 		MSIM_SH1106_Send(display);
 		MSIM_SH1106_Print(display, &textbuf[0]);
 
-		/* Draw delay, in ms */
-		snprintf((char *)&textbuf[0], sizeof textbuf, "%lu", delay_ms);
+		/* Draw delay (in ms) and # of iterations */
+		snprintf((char *)&textbuf[0], sizeof textbuf, "(%lu ms, %d)",
+		         delay_ms, FRAME_ITER);
 		MSIM_SH1106_Clean(display);
-		MSIM_SH1106_SetPage(display, 6);
+		MSIM_SH1106_SetPage(display, 1);
 		MSIM_SH1106_SetColumn(display, 2);
 		MSIM_SH1106_Send(display);
 		MSIM_SH1106_Print(display, &textbuf[0]);
 
-		/* Draw # of iterations */
-		snprintf((char *)&textbuf[0], sizeof textbuf, "%d", FRAME_ITER);
-		MSIM_SH1106_Clean(display);
-		MSIM_SH1106_SetPage(display, 7);
-		MSIM_SH1106_SetColumn(display, 2);
-		MSIM_SH1106_Send(display);
-		MSIM_SH1106_Print(display, &textbuf[0]);
-
-		if (img == 2U) {
-			ptr = oled_xling2;
-			img++;
-		} else if (img == 3U) {
-			ptr = oled_xling3;
-			img = 1;
-		} else {
-			ptr = oled_xling1;
-			img++;
-		}
 		ms = 0;
 
 		/* Let the framebuffer hang for some time */

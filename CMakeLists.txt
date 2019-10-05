@@ -25,20 +25,26 @@
 cmake_minimum_required(VERSION 3.2)
 project(Xling-firmware C)
 
-# Set common variables
+# ------------------------------------------------------------------------------
+# MCU type and clock frequency
+# ------------------------------------------------------------------------------
 set(AVR_MCU "atmega328p")
 set(AVR_FREQ 12000000UL)
-set(TARGET_OUTPUT_BASENAME "xling-0.3-firmware")
+
+set(TARGET_OUTPUT_BASENAME "xling-0.3.1-firmware")
 set(TARGET_OUTPUT_FILE "${TARGET_OUTPUT_BASENAME}.elf")
 set(TARGET_OUTPUT_DIR "${CMAKE_CURRENT_BINARY_DIR}")
-
+#
 # Remove '-rdynamic', '-Wl,-search_paths_first' (avr-gcc doesn't support this
 # one and treats it as '-Wl,-s' which strips linked ELF
+#
 set(CMAKE_C_LINK_FLAGS)
 set(CMAKE_SHARED_LIBRARY_LINK_C_FLAGS)
 set(CMAKE_SHARED_LIBRARY_LINK_CXX_FLAGS)
 
+# ------------------------------------------------------------------------------
 # Set flags
+# ------------------------------------------------------------------------------
 if (CMAKE_BUILD_TYPE MATCHES Debug)
 	message(STATUS "Building DEBUG version of Xling firmware")
 	add_definitions("-g -DDEBUG -mmcu=${AVR_MCU} -DF_CPU=${AVR_FREQ}")
@@ -92,12 +98,16 @@ else()
 endif()
 message(STATUS "Linker flags: ${CMAKE_EXE_LINKER_FLAGS}")
 
+# ------------------------------------------------------------------------------
 # MCUSim drivers configuration
+# ------------------------------------------------------------------------------
 add_definitions("-DconfigMSIM_DRV_DISPLAY_SH1106_TWI")
 add_definitions("-DconfigMSIM_DRV_DISPLAY_SH1106_DNUM=1")
 add_definitions("-DconfigMSIM_DRV_DISPLAY_SH1106_BUFSZ=144")
 
+# ------------------------------------------------------------------------------
 # Find executables
+# ------------------------------------------------------------------------------
 find_program(AVR_CC avr-gcc)
 find_program(AVR_SIZE_TOOL avr-size)
 find_program(AVR_OBJCOPY avr-objcopy)
@@ -105,16 +115,22 @@ find_program(AVR_OBJDUMP avr-objdump)
 find_program(AVR_DUDE avrdude)
 find_program(SREC_CAT srec_cat)
 
+# ------------------------------------------------------------------------------
 # Define mandatory variables
+# ------------------------------------------------------------------------------
 set(CMAKE_SYSTEM_NAME Generic)
 set(CMAKE_SYSTEM_PROCESSOR avr)
 set(CMAKE_C_COMPILER ${AVR_CC})
 set(CMAKE_CXX_COMPILER ${AVR_CXX})
 
+# ------------------------------------------------------------------------------
 # Define includes
+# ------------------------------------------------------------------------------
 include_directories("include/")
 
+# ------------------------------------------------------------------------------
 # Set sources here
+# ------------------------------------------------------------------------------
 set(XLING_SRC
 	src/fuse.c
 	src/main.c
@@ -125,7 +141,9 @@ set(XLING_SRC
 add_executable(${TARGET_OUTPUT_FILE} ${XLING_SRC})
 add_custom_target("upload")
 
+# ------------------------------------------------------------------------------
 # Prepare files for MCU
+# ------------------------------------------------------------------------------
 add_custom_command(
 	TARGET ${TARGET_OUTPUT_FILE} POST_BUILD
 	COMMAND ${AVR_SIZE_TOOL} -C --mcu=${AVR_MCU} ${TARGET_OUTPUT_DIR}/${TARGET_OUTPUT_FILE})
@@ -157,6 +175,9 @@ add_custom_command(
 	TARGET ${TARGET_OUTPUT_FILE} POST_BUILD
 	COMMAND ${AVR_OBJDUMP} -m avr -D ${TARGET_OUTPUT_DIR}/${TARGET_OUTPUT_BASENAME}.hex > ${TARGET_OUTPUT_DIR}/${TARGET_OUTPUT_BASENAME}.hex.txt)
 
+# ------------------------------------------------------------------------------
+# Upload command configurtion
+# ------------------------------------------------------------------------------
 add_custom_command(
 	TARGET "upload" POST_BUILD
 	COMMAND ${AVR_DUDE} -p m328p -b 115200 -P /dev/ttyACM0 -c stk500v2 -Uflash:w:${TARGET_OUTPUT_DIR}/${TARGET_OUTPUT_BASENAME}.hex)

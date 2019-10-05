@@ -178,7 +178,7 @@ int	MSIM_SH1106_Clean(struct MSIM_SH1106 *);
 int	MSIM_SH1106_Send(struct MSIM_SH1106 *);
 int	MSIM_SH1106_Write(struct MSIM_SH1106 *, const uint8_t);
 int	MSIM_SH1106_WriteData(struct MSIM_SH1106 *, const uint8_t *, size_t);
-int	MSIM_SH1106_WriteData_PF(struct MSIM_SH1106 *, uint_farptr_t, size_t);
+int	MSIM_SH1106_WriteData_PF(struct MSIM_SH1106 *, const uint8_t *, size_t);
 
 /* Display commands */
 int	MSIM_SH1106_SetPage(struct MSIM_SH1106 *, uint8_t page);

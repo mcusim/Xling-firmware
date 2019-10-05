@@ -32,7 +32,7 @@
 
 #include "mcusim/avr-gcc/avr/drivers/display/sh1106.h"
 
-/* Fundamental Command Table */
+/* Fundamental display commands */
 #define CMD_DISPLAYOFF		((uint8_t) 0xAEU)
 #define CMD_DISPLAYON		((uint8_t) 0xAFU)
 #define CMD_SETCONTRAST		((uint8_t) 0x81U)
@@ -44,6 +44,15 @@
 #define CMD_COLLADDR		((uint8_t) 0x00U)
 #define CMD_SETSCANDIR		((uint8_t) 0xC0U)
 
+/*
+ * Pump voltage commands. Specifies output voltage (Vpp) of the internal
+ * charger pump.
+ */
+#define CMD_PUMPV_6V4		((uint8_t) 0x30U) /* Vpump = 6.4V */
+#define CMD_PUMPV_7V4		((uint8_t) 0x31U) /* Vpump = 7.4V */
+#define CMD_PUMPV_8V0		((uint8_t) 0x32U) /* Vpump = 8.0V */
+#define CMD_PUMPV_9V0		((uint8_t) 0x33U) /* Vpump = 9.0V */
+
 /* Most significant nibble */
 #define MSN(v)		((uint8_t) (((uint8_t)(v)) & ((uint8_t) 0xF0U)))
 /* Last significant nibble */
@@ -53,7 +62,9 @@
  * Maximum number of the devices supported by the driver.
  *
  * Note that, it's up to the user to free display resources when they aren't
- * needed anymore. All driver memory is statically allocated.
+ * needed anymore.
+ *
+ * All driver memory is statically allocated.
  */
 #if defined(configMSIM_DRV_DISPLAY_SH1106_DNUM)
 #define DNUM		(configMSIM_DRV_DISPLAY_SH1106_DNUM)
@@ -84,13 +95,12 @@
 #if defined(configMSIM_DRV_DISPLAY_SH1106_TWIBB)
 
 /*
- * Wait for connection ready state.
- *
- * Note: It's not used in TWIBB mode.
+ * Macro to wait for the connection ready state (not used in
+ * bit-banging TWI mode).
  */
 #define WAIT_TILL_READY(d)
 
-/* Forward declaration of the display connection structure */
+/* Forward declaration of the display connection block */
 struct sh1106_con;
 
 static void	twibb_init(struct MSIM_SH1106 *, uint8_t addr,
@@ -111,7 +121,7 @@ struct sh1106_con {
 	uint8_t scl;		/* SCL pin number of the TWI port */
 };
 
-/* An opaque display control block */
+/* A display control block */
 struct MSIM_SH1106 {
 	uint8_t init;		/* Display initialized flag */
 	struct sh1106_con con;
@@ -119,12 +129,12 @@ struct MSIM_SH1106 {
 	uint32_t blen;
 };
 
+/* Pool of the display control blocks */
 static struct MSIM_SH1106 devices[DNUM];
 
 /*
- * Initializes a display (TWIBB).
- *
- * This function returns an opaque pointer which is used to control the display.
+ * Initializes a display (bit-banging TWI interface). This function returns an
+ * opaque pointer to the display control block.
  */
 struct MSIM_SH1106 *
 MSIM_SH1106_Init(struct MSIM_SH1106DisplayConf *conf)
@@ -144,7 +154,6 @@ MSIM_SH1106_Init(struct MSIM_SH1106DisplayConf *conf)
 			}
 		}
 		if (dev == NULL) {
-			/* Driver doesn't have an available display block. */
 			break;
 		}
 
@@ -159,13 +168,8 @@ MSIM_SH1106_Init(struct MSIM_SH1106DisplayConf *conf)
 }
 
 /*
- * Returns all resources of the initially initialized display back
- * to the driver.
- *
- * Note that all of the driver memory is statically allocated.
- * This function doesn't de-allocate or free any memory.
- *
- * It's up to the user to return display resources back to the driver.
+ * Returns a display control block back to the pool. This function doesn't free
+ * any memory. It's up to the driver user to return DCB back to the driver.
  */
 void
 MSIM_SH1106_Free(struct MSIM_SH1106 *dev)
@@ -176,6 +180,11 @@ MSIM_SH1106_Free(struct MSIM_SH1106 *dev)
 	}
 }
 
+/*
+ * Transmits the driver's buffer to the display. The buffer may contain commands
+ * and graphic data for the display, so it can't be treated as a framebuffer
+ * clearly.
+ */
 int
 MSIM_SH1106_Send(struct MSIM_SH1106 *dev)
 {
@@ -195,11 +204,12 @@ MSIM_SH1106_Send(struct MSIM_SH1106 *dev)
 	return rc;
 }
 
+/* Initializes a bit-banging TWI interface. */
 static void
 twibb_init(struct MSIM_SH1106 *dev, uint8_t addr, volatile uint8_t *port,
            volatile uint8_t *ddr, uint8_t sda, uint8_t scl)
 {
-	struct sh1106_con *con = &dev->con;
+	struct sh1106_con * const con = &dev->con;
 
 	/* TWI (bit-banging) configuration */
 	con->addr = addr;
@@ -217,6 +227,7 @@ twibb_init(struct MSIM_SH1106 *dev, uint8_t addr, volatile uint8_t *port,
 	(*con->port) = (uint8_t) ((*con->port) | (1 << con->scl));
 }
 
+/* Sends a START signal and a slave address over TWI. */
 static int
 twibb_start(struct sh1106_con *twi)
 {
@@ -233,6 +244,7 @@ twibb_start(struct sh1106_con *twi)
 	return 0;
 }
 
+/* Sends a STOP signal over TWI. */
 static int
 twibb_stop(struct sh1106_con *twi)
 {
@@ -355,8 +367,8 @@ twibb_write_data(struct sh1106_con *twi, uint8_t *data, uint32_t len)
  *                    a byte.
  */
 #define RESUME_TWI()	(TWCR |= (1<<TWINT))
-#define SEND_START()	(TWCR = (1<<TWINT) | (1<<TWSTA) | (1<<TWEN) | (1<<TWIE))
-#define SEND_STOP()	(TWCR = (1<<TWINT) | (1<<TWSTO) | (1<<TWEN) | (1<<TWIE))
+#define SEND_START()	(TWCR = (1<<TWINT) | (1<<TWEN) | (1<<TWIE) | (1<<TWSTA))
+#define SEND_STOP()	(TWCR = (1<<TWINT) | (1<<TWEN) | (1<<TWIE) | (1<<TWSTO))
 #define RESUME_TRANS()	(TWCR = (1<<TWINT) | (1<<TWEN) | (1<<TWIE))
 #define SEND_ACK()	(TWCR = (1<<TWINT) | (1<<TWEN) | (1<<TWIE) | (1<<TWEA))
 #define SEND_NACK()	(TWCR = (1<<TWINT) | (1<<TWEN) | (1<<TWIE))
@@ -411,16 +423,15 @@ struct MSIM_SH1106 {
 	volatile enum sh1106_con_state state;
 	volatile uint8_t init;		/* Display initialized flag */
 	volatile uint8_t addr;		/* TWI address of the display */
-	volatile uint8_t buf[BUFSZ];	/* Buffer for commands and data */
 	volatile uint32_t blen;		/* Current buffer length */
 	volatile uint32_t sent_i;	/* Current byte index to send */
 	volatile uint32_t sent_len;	/* Number of bytes to send */
+	uint8_t buf[BUFSZ];		/* Buffer for commands and data */
 };
 
-/* A pointer to the current DCB which will be accessed from the TWI ISR. */
-static struct MSIM_SH1106 *cur_dev;
-static struct MSIM_SH1106 devices[DNUM];	/* Display control blocks */
 static uint8_t drv_init = 0;			/* Driver initialized flag */
+static struct MSIM_SH1106 devices[DNUM];	/* Display control blocks */
+static struct MSIM_SH1106 *cur_dev;		/* Current DCB (for ISR) */
 
 /*
  * Initializes the driver (TWI).
@@ -432,7 +443,7 @@ MSIM_SH1106__drvStart(struct MSIM_SH1106DriverConf *conf)
 	TWSR = NO_INFO;
 	/* Set TWI Bit Rate register */
 	TWBR = (uint8_t)(((conf->cpu_f / conf->twi_f) - 16) / 2);
-	/* Enable TWI, its interrupt and ACK bit generation */
+	/* Enable TWI and its interrupt */
 	TWCR = (1 << TWEN) | (1 << TWIE);
 
 	drv_init = 1;
@@ -449,8 +460,8 @@ MSIM_SH1106__drvStop(void)
 {
 	/* TWI Status to NO_INFO, TWI prescaler - to 1 */
 	TWSR = NO_INFO;
-	/* Disable TWI, its interrupt and ACK bit generation */
-	TWCR &= (uint8_t)(~((1 << TWEN) | (1 << TWIE) | (1 << TWEA)));
+	/* Disable TWI and its interrupt */
+	TWCR &= (uint8_t)(~((1 << TWEN) | (1 << TWIE)));
 
 	drv_init = 0;
 	cur_dev = NULL;
@@ -689,14 +700,15 @@ MSIM_SH1106_WriteData(struct MSIM_SH1106 *dev, const uint8_t *data, size_t len)
  * Note: It copies a memory block from flash to SRAM.
  */
 int
-MSIM_SH1106_WriteData_PF(struct MSIM_SH1106 *dev, uint_farptr_t dat, size_t len)
+MSIM_SH1106_WriteData_PF(struct MSIM_SH1106 *dev, const uint8_t *d, size_t len)
 {
 	int rc = 0;
+	uint_farptr_t pdat = (uint_farptr_t) d;
 
 	WAIT_TILL_READY(dev);
 
 	if ((dev != NULL) && (len <= (BUFSZ - dev->blen))) {
-		memcpy_PF((void *) &dev->buf[dev->blen], dat, len);
+		memcpy_PF((void *) &dev->buf[dev->blen], pdat, len);
 		dev->blen += len;
 	} else {
 		rc = 1;
