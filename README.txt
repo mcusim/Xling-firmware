@@ -33,77 +33,82 @@ Compile and upload the firmware
  Perform these steps in a terminal:
 
     $ git clone https://github.com/mcusim/Xling-firmware.git
-    $ cd Xling-firmware
+    $ cd Xling-firmware/FreeRTOS/Demo/AVR_ATMega1284P_Xling_GCC
     $ mkdir build && cd build
     $ cmake .. && make
     $ sudo make upload
 
  An expected output may look like:
 
-        dsl@ds-laptop:~/git/Xling-firmware/build$ cmake ..
-        -- The C compiler identification is GNU 8.3.0
-        -- Check for working C compiler: /usr/bin/cc
-        -- Check for working C compiler: /usr/bin/cc -- works
-        -- Detecting C compiler ABI info
-        -- Detecting C compiler ABI info - done
-        -- Detecting C compile features
-        -- Detecting C compile features - done
-        -- Building RELEASE version of Xling firmware
-        -- Linker flags:  -mmcu=atmega328p -Wl,-Map=/home/dsl/git/Xling-firmware/build/xling-0.3-firmware.map,--cref,--section-start=.text=0 -s
-        -- Configuring done
-        -- Generating done
-        -- Build files have been written to: /home/dsl/git/Xling-firmware/build
-        dsl@ds-laptop:~/git/Xling-firmware/build$ make
-        Scanning dependencies of target xling-0.3-firmware.elf
-        [ 20%] Building C object CMakeFiles/xling-0.3-firmware.elf.dir/src/fuse.c.o
-        [ 40%] Building C object CMakeFiles/xling-0.3-firmware.elf.dir/src/main.c.o
-        ...
-        [ 80%] Building C object CMakeFiles/xling-0.3-firmware.elf.dir/src/mcusim/avr-gcc/avr/drivers/display/sh1106_graphics.c.o
-        [100%] Linking C executable xling-0.3-firmware.elf
-        AVR Memory Usage
-        ----------------
-        Device: atmega328p
 
-        Program:    8908 bytes (27.2% Full)
-        (.text + .data + .bootloader)
-
-        Data:        189 bytes (9.2% Full)
-        (.data + .bss + .noinit)
+        dsl@ds-laptop:~AVR_ATMega1284P_Xling_GCC/build$ cmake ..
 
 
-        [100%] Built target xling-0.3-firmware.elf
+-- The C compiler identification is GNU 9.2.1
+-- Check for working C compiler: /usr/bin/cc
+-- Check for working C compiler: /usr/bin/cc -- works
+-- Detecting C compiler ABI info
+-- Detecting C compiler ABI info - done
+-- Detecting C compile features
+-- Detecting C compile features - done
+-- Building RELEASE version of Xling firmware
+-- Linker flags:  -mmcu=atmega1284p -Wl,-Map=/home/dsl/git/Xling-firmware/FreeRTOS/Demo/AVR_ATMega1284P_Xling_GCC/build/xling-0.4.1.map,--cref,--section-start=.text=0 -s
+-- Configuring done
+-- Generating done
+-- Build files have been written to: /home/dsl/git/Xling-firmware/FreeRTOS/Demo/AVR_ATMega1284P_Xling_GCC/build
+Scanning dependencies of target xling-0.4.1.elf
+[ 12%] Building C object CMakeFiles/xling-0.4.1.elf.dir/src/fuse.c.o
+[ 25%] Building C object CMakeFiles/xling-0.4.1.elf.dir/src/main.c.o
+...
+[ 87%] Building C object CMakeFiles/xling-0.4.1.elf.dir/src/mcusim/avr-gcc/avr/drivers/display/sh1106/sh1106_twibb.c.o
+[100%] Linking C executable xling-0.4.1.elf
+AVR Memory Usage
+----------------
+Device: atmega1284p
+
+Program:    5726 bytes (4.4% Full)
+(.text + .data + .bootloader)
+
+Data:        210 bytes (1.3% Full)
+(.data + .bss + .noinit)
+
+
+[100%] Built target xling-0.4.1.elf
+
+
         dsl@ds-laptop:~/git/Xling-firmware/build$ sudo make upload
-        [sudo] password for dsl:
-        Scanning dependencies of target upload
 
-        avrdude: AVR device initialized and ready to accept instructions
 
-        Reading | ################################################## | 100% 0.00s
+Scanning dependencies of target upload
 
-        avrdude: Device signature = 0x1e950f (probably m328p)
-        avrdude: NOTE: "flash" memory has been specified, an erase cycle will be performed
-                 To disable this feature, specify the -D option.
-        avrdude: erasing chip
-        avrdude: reading input file "/home/dsl/git/Xling-firmware/build/xling-0.3-firmware.hex"
-        avrdude: input file /home/dsl/git/Xling-firmware/build/xling-0.3-firmware.hex auto detected as Intel Hex
-        avrdude: writing flash (8908 bytes):
+avrdude: AVR device initialized and ready to accept instructions
 
-        Writing | ################################################## | 100% 3.26s
+Reading | ################################################## | 100% 0.00s
 
-        avrdude: 8908 bytes of flash written
-        avrdude: verifying flash memory against /home/dsl/git/Xling-firmware/build/xling-0.3-firmware.hex:
-        avrdude: load data flash data from input file /home/dsl/git/Xling-firmware/build/xling-0.3-firmware.hex:
-        avrdude: input file /home/dsl/git/Xling-firmware/build/xling-0.3-firmware.hex auto detected as Intel Hex
-        avrdude: input file /home/dsl/git/Xling-firmware/build/xling-0.3-firmware.hex contains 8908 bytes
-        avrdude: reading on-chip flash data:
+avrdude: Device signature = 0x1e9705 (probably m1284p)
+avrdude: NOTE: "flash" memory has been specified, an erase cycle will be performed
+         To disable this feature, specify the -D option.
+avrdude: erasing chip
+avrdude: reading input file "/home/dsl/git/Xling-firmware/FreeRTOS/Demo/AVR_ATMega1284P_Xling_GCC/build/xling-0.4.1.hex"
+avrdude: input file /home/dsl/git/Xling-firmware/FreeRTOS/Demo/AVR_ATMega1284P_Xling_GCC/build/xling-0.4.1.hex auto detected as Intel Hex
+avrdude: writing flash (5726 bytes):
 
-        Reading | ################################################## | 100% 2.92s
+Writing | ################################################## | 100% 2.00s
 
-        avrdude: verifying ...
-        avrdude: 8908 bytes of flash verified
+avrdude: 5726 bytes of flash written
+avrdude: verifying flash memory against /home/dsl/git/Xling-firmware/FreeRTOS/Demo/AVR_ATMega1284P_Xling_GCC/build/xling-0.4.1.hex:
+avrdude: load data flash data from input file /home/dsl/git/Xling-firmware/FreeRTOS/Demo/AVR_ATMega1284P_Xling_GCC/build/xling-0.4.1.hex:
+avrdude: input file /home/dsl/git/Xling-firmware/FreeRTOS/Demo/AVR_ATMega1284P_Xling_GCC/build/xling-0.4.1.hex auto detected as Intel Hex
+avrdude: input file /home/dsl/git/Xling-firmware/FreeRTOS/Demo/AVR_ATMega1284P_Xling_GCC/build/xling-0.4.1.hex contains 5726 bytes
+avrdude: reading on-chip flash data:
 
-        avrdude: safemode: Fuses OK (E:FF, H:D9, L:EF)
+Reading | ################################################## | 100% 1.89s
 
-        avrdude done.  Thank you.
+avrdude: verifying ...
+avrdude: 5726 bytes of flash verified
 
-        Built target upload
+avrdude: safemode: Fuses OK (E:FF, H:D9, L:AF)
+
+avrdude done.  Thank you.
+
+Built target upload
