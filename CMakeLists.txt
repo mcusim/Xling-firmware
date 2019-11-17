@@ -25,6 +25,12 @@ project(Xling-firmware C)
 #
 # NOTE: Use 'make VERBOSE=1' for verbose output.
 #
+#   $ cmake ..
+#   ----------
+#
+#     Use this command from the separate "build" directory (which is usually
+#     placed under the project's root directory) to generate a makefile.
+#
 #   $ make
 #   ------
 #
@@ -49,13 +55,15 @@ project(Xling-firmware C)
 #
 
 # Target file name (without extension) and version
-set(TARGET_OUTPUT_BASENAME "Xling-firmware-0.4.2")
+set(TARGET_OUTPUT_BASENAME "Xling-firmware-0.4.3")
 
 # ------------------------------------------------------------------------------
 # MCU type and clock frequency
 # ------------------------------------------------------------------------------
 set(AVR_MCU "atmega1284p")
 set(AVR_FREQ 12000000UL)
+#set(AVR_PORT "/dev/ttyU0")		# for FreeBSD
+set(AVR_PORT "/dev/ttyACM0")		# for GNU/Linux
 
 set(TARGET_OUTPUT_FILE "${TARGET_OUTPUT_BASENAME}.elf")
 set(TARGET_OUTPUT_DIR "${CMAKE_CURRENT_BINARY_DIR}")
@@ -190,7 +198,7 @@ add_custom_target("upload")
 # ------------------------------------------------------------------------------
 add_custom_command(
 	TARGET ${TARGET_OUTPUT_FILE} POST_BUILD
-	COMMAND ${AVR_SIZE_TOOL} -C --mcu=${AVR_MCU} ${TARGET_OUTPUT_DIR}/${TARGET_OUTPUT_FILE})
+	COMMAND ${AVR_SIZE_TOOL} ${TARGET_OUTPUT_DIR}/${TARGET_OUTPUT_FILE})
 add_custom_command(
 	TARGET ${TARGET_OUTPUT_FILE} POST_BUILD
 	COMMAND ${AVR_OBJDUMP} -h -S ${TARGET_OUTPUT_FILE} > ${TARGET_OUTPUT_DIR}/${TARGET_OUTPUT_BASENAME}.lss)
@@ -224,7 +232,7 @@ add_custom_command(
 # ------------------------------------------------------------------------------
 add_custom_command(
 	TARGET "mcu" POST_BUILD
-	COMMAND ${AVR_DUDE} -p m1284p -b 115200 -P /dev/ttyACM0 -c stk500v2)
+	COMMAND ${AVR_DUDE} -p m1284p -b 115200 -P ${AVR_PORT} -c stk500v2)
 
 # ------------------------------------------------------------------------------
 # Upload command configurtion
@@ -236,4 +244,4 @@ add_custom_command(
 # ------------------------------------------------------------------------------
 add_custom_command(
 	TARGET "upload" POST_BUILD
-	COMMAND ${AVR_DUDE} -p m1284p -b 115200 -P /dev/ttyACM0 -c stk500v2 -Uflash:w:${TARGET_OUTPUT_DIR}/${TARGET_OUTPUT_BASENAME}.hex)
+	COMMAND ${AVR_DUDE} -p m1284p -b 115200 -P ${AVR_PORT} -c stk500v2 -Uflash:w:${TARGET_OUTPUT_DIR}/${TARGET_OUTPUT_BASENAME}.hex)
