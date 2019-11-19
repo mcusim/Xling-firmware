@@ -72,7 +72,6 @@
 /* Number of times to re-draw the display */
 #define FRAME_ITER		20
 
-static MSIM_SH1106 *display;
 static MSIM_SH1106DriverConf drv_conf = {
 	.port_spi = &PORTB,
 	.ddr_spi = &DDRB,
@@ -103,30 +102,34 @@ static void	display_task(void *arg);
 static void	init_timer2(void);
 static void	init_adc(void);
 
-int main(void)
+/*
+ * Entry point.
+ */
+int
+main(void)
 {
-	/* Configure PORTC pins as output */
+	/* Configure PORTC pins as output. */
 	DDRC = 0xFF;
-	/* Configure PORTA pins as input */
+	/* Configure PORTA pins as input. */
 	DDRA = 0x00;
 	PORTA = 0x00;
 
-	/* Keep CS high (display isn't selected) */
+	/* Keep CS high (display isn't selected). */
 	SET_BIT(PORTC, OLED_CS);
 
-	/* Power On the display */
+	/* Power On the display. */
 	CLEAR_BIT(PORTC, OLED_RST);
 	_delay_ms(1);
 	SET_BIT(PORTC, OLED_RST);
 	_delay_ms(10);
 
-	/* Start the driver for SH1106-based displays */
+	/* Start the driver for SH1106-based displays. */
 	MSIM_SH1106__drvStart(&drv_conf);
 
-	/* Setup Timer/Counter2 to count milliseconds */
+	/* Setup Timer/Counter2 to count milliseconds. */
 	init_timer2();
 
-	/* Setup ADC to measure battery voltage */
+	/* Setup ADC to measure battery voltage. */
 	init_adc();
 
 	/* Create the tasks. */
@@ -137,7 +140,7 @@ int main(void)
 
 	for (;;);
 
-	/* Stop the display driver */
+	/* Stop the display driver. */
 	MSIM_SH1106__drvStop();
 
 	return 0;
@@ -150,6 +153,7 @@ static void
 display_task(void *arg __attribute((unused)))
 {
 	const uint8_t *ptr = NULL;
+	MSIM_SH1106 *display = NULL;
 	uint32_t delay_ms = 1;
 	uint8_t frame_id = 1;
 	uint8_t col = 0;
@@ -267,7 +271,7 @@ display_task(void *arg __attribute((unused)))
 
 		MSIM_SH1106_Print(display, &textbuf[0]);
 
-		snprintf(&textbuf[0], sizeof textbuf, "(%lu ms, %d)",
+		snprintf(&textbuf[0], sizeof textbuf, "%lu ms, %d",
 		         delay_ms, FRAME_ITER);
 
 		/* Draw delay and # of iterations */

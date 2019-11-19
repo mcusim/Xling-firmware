@@ -54,8 +54,13 @@ project(Xling-firmware C)
 #     operating system.
 #
 
+# Xling-firmware version
+set(XLING_MAJOR_VERSION 0)
+set(XLING_MINOR_VERSION 4)
+set(XLING_PATCH_VERSION 4)
+
 # Target file name (without extension) and version
-set(TARGET_OUTPUT_BASENAME "Xling-firmware-0.4.3")
+set(TARGET_OUTPUT_BASENAME "Xling-firmware-${XLING_MAJOR_VERSION}.${XLING_MINOR_VERSION}.${XLING_PATCH_VERSION}")
 
 # ------------------------------------------------------------------------------
 # MCU type and clock frequency
@@ -130,7 +135,15 @@ else()
 	set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,-Map=${TARGET_OUTPUT_DIR}/${TARGET_OUTPUT_BASENAME}.map,--cref,--section-start=.text=0")
 	set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -s")
 endif()
+
 message(STATUS "Linker flags: ${CMAKE_EXE_LINKER_FLAGS}")
+
+# ------------------------------------------------------------------------------
+# Xling-firmware configuration
+# ------------------------------------------------------------------------------
+add_definitions("-DconfigXLNG_MAJOR_VER=${XLING_MAJOR_VERSION}")
+add_definitions("-DconfigXLNG_MINOR_VER=${XLING_MINOR_VERSION}")
+add_definitions("-DconfigXLNG_PATCH_VER=${XLING_PATCH_VERSION}")
 
 # ------------------------------------------------------------------------------
 # MCUSim drivers configuration

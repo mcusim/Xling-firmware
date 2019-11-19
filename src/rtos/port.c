@@ -28,6 +28,9 @@
 
 /*
  * Implementation of the functions defined in portable.h for ATMega1284P MCU.
+ *
+ * NOTE: Timer 1 (16-bit) and its compare-match channel A will be used to
+ * generate a tick interrupt.
  */
 
 #include "FreeRTOS.h"
@@ -175,14 +178,22 @@ pxPortInitialiseStack(StackType_t *pxTopOfStack, TaskFunction_t pxCode, void *pv
 	uint16_t usAddress;
 
 	/*
-	 * Place a few bytes of known values on the bottom of the stack.
-	 * This is just useful for debugging.
+	 * Place Xling magic symbols and a current version of the firmware
+	 * on top of the stack. This is just useful for debugging.
 	 */
-	*pxTopOfStack = 0x11;
+	*pxTopOfStack = 'X';
 	pxTopOfStack--;
-	*pxTopOfStack = 0x22;
+	*pxTopOfStack = 'L';
 	pxTopOfStack--;
-	*pxTopOfStack = 0x33;
+	*pxTopOfStack = 'N';
+	pxTopOfStack--;
+	*pxTopOfStack = 'G';
+	pxTopOfStack--;
+	*pxTopOfStack = configXLNG_MAJOR_VER;
+	pxTopOfStack--;
+	*pxTopOfStack = configXLNG_MINOR_VER;
+	pxTopOfStack--;
+	*pxTopOfStack = configXLNG_PATCH_VER;
 	pxTopOfStack--;
 
 	/*
