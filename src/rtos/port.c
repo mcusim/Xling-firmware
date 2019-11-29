@@ -183,17 +183,13 @@ pxPortInitialiseStack(StackType_t *pxTopOfStack, TaskFunction_t pxCode, void *pv
 	 */
 	*pxTopOfStack = 'X';
 	pxTopOfStack--;
-	*pxTopOfStack = 'L';
-	pxTopOfStack--;
-	*pxTopOfStack = 'N';
-	pxTopOfStack--;
 	*pxTopOfStack = 'G';
 	pxTopOfStack--;
-	*pxTopOfStack = configXLNG_MAJOR_VER;
+	*pxTopOfStack = configXG_MAJOR_VER;
 	pxTopOfStack--;
-	*pxTopOfStack = configXLNG_MINOR_VER;
+	*pxTopOfStack = configXG_MINOR_VER;
 	pxTopOfStack--;
-	*pxTopOfStack = configXLNG_PATCH_VER;
+	*pxTopOfStack = configXG_PATCH_VER;
 	pxTopOfStack--;
 
 	/*

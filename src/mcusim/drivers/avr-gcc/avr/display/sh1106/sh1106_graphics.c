@@ -1,7 +1,9 @@
-/*
+/*-
+ * SPDX-License-Identifier: GPL-3.0-or-later
+ *
  * This file is part of MCUSim, an XSPICE library with microcontrollers.
  *
- * Copyright (C) 2017-2019 MCUSim Developers, see AUTHORS.txt for contributors.
+ * Copyright (C) 2017-2019 MCUSim Developers
  *
  * MCUSim is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -52,11 +54,11 @@ static const uint8_t PM s[] =		{ 0x00, 0x48, 0x54, 0x24, 0x00, 0x00 };
 static const uint8_t PM space[] =	{ 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
 static const uint8_t PM comma[] =	{ 0x00, 0x00, 0xc0, 0x00, 0x00, 0x00 };
 
-static void	write_mem(struct MSIM_SH1106 *, const uint8_t *, size_t);
+static void	write_mem(MSIM_SH1106_t *, const uint8_t *, size_t);
 
 /* Prints text at the current line of the display. */
 int
-MSIM_SH1106_Print(struct MSIM_SH1106 *dev, const char *text)
+MSIM_SH1106_Print(MSIM_SH1106_t *dev, const char *text)
 {
 	const size_t len = strlen(text);
 
@@ -134,7 +136,7 @@ MSIM_SH1106_Print(struct MSIM_SH1106 *dev, const char *text)
 	return 0;
 }
 
-static void write_mem(struct MSIM_SH1106 *dev, const uint8_t *data, size_t len)
+static void write_mem(MSIM_SH1106_t *dev, const uint8_t *data, size_t len)
 {
 	for (size_t i = 0; i < len; i++) {
 		MSIM_SH1106_bufAppend(dev, pgm_read_byte(&data[i]));

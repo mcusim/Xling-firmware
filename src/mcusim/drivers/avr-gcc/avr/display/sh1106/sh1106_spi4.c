@@ -1,7 +1,9 @@
-/*
+/*-
+ * SPDX-License-Identifier: GPL-3.0-or-later
+ *
  * This file is part of MCUSim, an XSPICE library with microcontrollers.
  *
- * Copyright (C) 2017-2019 MCUSim Developers, see AUTHORS.txt for contributors.
+ * Copyright (C) 2017-2019 MCUSim Developers
  *
  * MCUSim is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -24,8 +26,8 @@
 #include <util/delay.h>
 
 /*
- * Low-level driver for SH1106-based displays connected via 4-wire SPI
- * interface.
+ * Implementation of the low-level driver for SH1106-based displays connected
+ * via 4-wire SPI interface.
  *
  * NOTE: An interrupt of the SPI serial transfer (SPI_STC_vect) is occupied by
  * the driver.
@@ -88,65 +90,65 @@
 #if defined(configMSIM_DRV_DISPLAY_SH1106_SPI4)
 
 /* Wait for connection ready state */
-#define WAIT_TILL_READY(d)	while (((d) != NULL) && \
+#define WAIT_TILL_READY(d)	while (((cdev) != NULL) || (((d) != NULL) && \
                                        ((d)->state != CON_READY) && \
-                                       ((d)->state != CON_INIT)) {_delay_us(5);}
+                                       ((d)->state != CON_INIT))){_delay_us(5);}
 
 /* Types of the data located in the driver's buffer */
 typedef enum buf_dtype {
-	DC_UNKNOWN,			/* Unknown type */
-	DC_CMD,				/* Data for command register */
-	DC_GRAM,			/* Data for graphics RAM */
+	DC_UNKNOWN,		/* Unknown type */
+	DC_CMD,			/* Data for command register */
+	DC_GRAM,		/* Data for graphics RAM */
 } buf_dtype;
 
 /* SPI connection state */
 typedef enum con_state {
-	CON_INIT,			/* Connection has been initialized */
-	CON_READY,			/* Connection is ready */
-	CON_MASTER_TRANS,		/* Master transmits data */
-	CON_MASTER_RECV,		/* Master receives data */
+	CON_INIT,		/* Connection has been initialized */
+	CON_READY,		/* Connection is ready */
+	CON_MASTER_TRANS,	/* Master transmits data */
+	CON_MASTER_RECV,	/* Master receives data */
 } con_state;
 
 /* Cconnection block */
 typedef struct sh1106_con {
-	volatile uint8_t *rst_port;	/* I/O port for "reset" pin */
-	volatile uint8_t *rst_ddr;	/* DDR of the "reset" pin port */
-	volatile uint8_t *cs_port;	/* I/O port for "chip-select" pin */
-	volatile uint8_t *cs_ddr;	/* DDR of the "chip-select" pin port */
-	volatile uint8_t *dc_port;	/* I/O port of the "data/command" pin */
-	volatile uint8_t *dc_ddr;	/* DDR of the "data/command" pin port */
-	uint8_t rst;			/* Reset pin (PC0, PC1, etc.) */
-	uint8_t cs;			/* Chip-select pin (PC0, PC1, etc.) */
-	uint8_t dc;			/* Data/Command pin */
+	volatile uint8_t	*rst_port;	/* RST port */
+	volatile uint8_t	*rst_ddr;	/* RST port (DDR) */
+	volatile uint8_t	*cs_port;	/* CS port */
+	volatile uint8_t	*cs_ddr;	/* CS port (DDR) */
+	volatile uint8_t	*dc_port;	/* D/C port */
+	volatile uint8_t	*dc_ddr;	/* D/C port (DDR) */
+	uint8_t			rst;		/* Reset pin # */
+	uint8_t			cs;		/* Chip-select pin # */
+	uint8_t			dc;		/* Data/Command pin # */
 } sh1106_con;
 
 /* Display control block (DCB) */
-struct MSIM_SH1106 {
-	volatile sh1106_con con;	/* Display's connection */
-	volatile uint16_t bytes_len;	/* Buffer length (in bytes) */
-	volatile uint16_t sent_i;	/* Byte index to send */
-	volatile uint16_t sent_len;	/* Number of the bytes to send */
-	volatile con_state state;	/* Display's connection state */
-	volatile buf_dtype dat_type;	/* Buffer data type (CMD or GRAM) */
-	volatile uint8_t init;		/* Display initialized flag */
-	volatile uint8_t buf[BUFSZ];	/* DCB's buffer */
+struct MSIM_SH1106_t {
+	volatile sh1106_con	con;		/* Display's connection */
+	volatile uint16_t	bytes_len;	/* Buffer length (in bytes) */
+	volatile uint16_t	sent_i;		/* Byte index to send */
+	volatile uint16_t	sent_len;	/* # of bytes to send */
+	volatile con_state	state;		/* Display's connection state */
+	volatile buf_dtype	dat_type;	/* Buffer data type */
+	volatile uint8_t	init;		/* Display initialized flag */
+	volatile uint8_t	buf[BUFSZ];	/* DCB's buffer */
 };
 
 /* Local function declarations. */
-static int append_byte(MSIM_SH1106 *, buf_dtype, const uint8_t);
-static int append_bytes(MSIM_SH1106 *, buf_dtype, const uint8_t *, size_t);
-static int append_bytes_PF(MSIM_SH1106 *, buf_dtype, const uint8_t *, size_t);
+static int append_byte(MSIM_SH1106_t *, buf_dtype, const uint8_t);
+static int append_bytes(MSIM_SH1106_t *, buf_dtype, const uint8_t *, size_t);
+static int append_bytes_PF(MSIM_SH1106_t *, buf_dtype, const uint8_t *, size_t);
 
 /* "Private" variables for the driver. */
 static uint8_t drv_init;			/* A "driver init" flag */
-static volatile MSIM_SH1106 * volatile cdev;	/* Current DCB (for ISR) */
-static MSIM_SH1106 devices[DNUM];		/* Pool of the DCBs */
+static volatile MSIM_SH1106_t * volatile cdev;	/* Current DCB (for ISR) */
+static MSIM_SH1106_t devices[DNUM];		/* Pool of the DCBs */
 
 /*
  * Initializes the driver.
  */
 int
-MSIM_SH1106__drvStart(const MSIM_SH1106DriverConf *conf)
+MSIM_SH1106__drvStart(const MSIM_SH1106DrvConf_t *conf)
 {
 	/* Set MOSI and SCK output */
 	SET_BIT((*conf->ddr_spi), conf->mosi);
@@ -194,10 +196,10 @@ MSIM_SH1106__drvStop(void)
  *
  * This function returns an opaque pointer to the DCB.
  */
-MSIM_SH1106 *
-MSIM_SH1106_Init(const MSIM_SH1106DisplayConf *conf)
+MSIM_SH1106_t *
+MSIM_SH1106_Init(const MSIM_SH1106Conf_t *conf)
 {
-	MSIM_SH1106 *dev = NULL;
+	MSIM_SH1106_t *dev = NULL;
 
 	do {
 		/* Can't initialize the display without a config */
@@ -256,7 +258,7 @@ MSIM_SH1106_Init(const MSIM_SH1106DisplayConf *conf)
  * back to the driver.
  */
 void
-MSIM_SH1106_Free(MSIM_SH1106 *dev)
+MSIM_SH1106_Free(MSIM_SH1106_t *dev)
 {
 	WAIT_TILL_READY(dev);
 
@@ -271,7 +273,7 @@ MSIM_SH1106_Free(MSIM_SH1106 *dev)
  * Resets length of the DCB's buffer.
  */
 int
-MSIM_SH1106_bufClear(MSIM_SH1106 *dev)
+MSIM_SH1106_bufClear(MSIM_SH1106_t *dev)
 {
 	int rc = MSIM_SH1106_RC_OK;
 
@@ -291,7 +293,7 @@ MSIM_SH1106_bufClear(MSIM_SH1106 *dev)
  * Transmits the driver's buffer to the display.
  */
 int
-MSIM_SH1106_bufSend(MSIM_SH1106 *dev)
+MSIM_SH1106_bufSend(MSIM_SH1106_t *dev)
 {
 	int rc = MSIM_SH1106_RC_OK;
 
@@ -344,7 +346,7 @@ MSIM_SH1106_bufSend(MSIM_SH1106 *dev)
  * Appends a data byte (for graphics RAM) to the DCB's buffer.
  */
 int
-MSIM_SH1106_bufAppend(MSIM_SH1106 *dev, const uint8_t data_byte)
+MSIM_SH1106_bufAppend(MSIM_SH1106_t *dev, const uint8_t data_byte)
 {
 	return append_byte(dev, DC_GRAM, data_byte);
 }
@@ -353,7 +355,7 @@ MSIM_SH1106_bufAppend(MSIM_SH1106 *dev, const uint8_t data_byte)
  * Appends data bytes (for graphics RAM) to the DCB's buffer.
  */
 int
-MSIM_SH1106_bufAppendLast(MSIM_SH1106 *dev, const uint8_t *data, size_t len)
+MSIM_SH1106_bufAppendLast(MSIM_SH1106_t *dev, const uint8_t *data, size_t len)
 {
 	return append_bytes(dev, DC_GRAM, data, len);
 }
@@ -363,7 +365,7 @@ MSIM_SH1106_bufAppendLast(MSIM_SH1106 *dev, const uint8_t *data, size_t len)
  * DCB's buffer.
  */
 int
-MSIM_SH1106_bufAppendLast_PF(MSIM_SH1106 *dev, const uint8_t *data, size_t len)
+MSIM_SH1106_bufAppendLast_PF(MSIM_SH1106_t *dev, const uint8_t *data, size_t len)
 {
 	return append_bytes_PF(dev, DC_GRAM, data, len);
 }
@@ -372,7 +374,7 @@ MSIM_SH1106_bufAppendLast_PF(MSIM_SH1106 *dev, const uint8_t *data, size_t len)
  * Specifies page address to load display RAM data to page address register.
  */
 int
-MSIM_SH1106_SetPage(MSIM_SH1106 *dev, uint8_t page)
+MSIM_SH1106_SetPage(MSIM_SH1106_t *dev, uint8_t page)
 {
 	return append_byte(dev, DC_CMD, (uint8_t)
 	                   (MSN(CMD_PAGEADDR) | ((uint8_t)(page & 0x07U))));
@@ -383,7 +385,7 @@ MSIM_SH1106_SetPage(MSIM_SH1106 *dev, uint8_t page)
  * display RAM.
  */
 int
-MSIM_SH1106_SetColumn(MSIM_SH1106 *dev, uint8_t col)
+MSIM_SH1106_SetColumn(MSIM_SH1106_t *dev, uint8_t col)
 {
 	append_byte(dev, DC_CMD, MSN(CMD_COLHADDR) | LSN(col >> 4));
 	return append_byte(dev, DC_CMD, MSN(CMD_COLLADDR) | LSN(col));
@@ -393,7 +395,7 @@ MSIM_SH1106_SetColumn(MSIM_SH1106 *dev, uint8_t col)
  * Switch the display on.
  */
 int
-MSIM_SH1106_DisplayOn(MSIM_SH1106 *dev)
+MSIM_SH1106_DisplayOn(MSIM_SH1106_t *dev)
 {
 	return append_byte(dev, DC_CMD, CMD_DISPLAYON);
 }
@@ -402,7 +404,7 @@ MSIM_SH1106_DisplayOn(MSIM_SH1106 *dev)
  * Switch the display off.
  */
 int
-MSIM_SH1106_DisplayOff(MSIM_SH1106 *dev)
+MSIM_SH1106_DisplayOff(MSIM_SH1106_t *dev)
 {
 	return append_byte(dev, DC_CMD, CMD_DISPLAYOFF);
 }
@@ -411,7 +413,7 @@ MSIM_SH1106_DisplayOff(MSIM_SH1106 *dev)
  * Set the display's contrast value.
  */
 int
-MSIM_SH1106_SetContrast(MSIM_SH1106 *dev, uint8_t val)
+MSIM_SH1106_SetContrast(MSIM_SH1106_t *dev, uint8_t val)
 {
 	append_byte(dev, DC_CMD, CMD_SETCONTRAST);
 	return append_byte(dev, DC_CMD, val);
@@ -421,7 +423,7 @@ MSIM_SH1106_SetContrast(MSIM_SH1106 *dev, uint8_t val)
  * Switch the display to the "normal" state (1 - pixel's ON, 0 - pixel's OFF).
  */
 int
-MSIM_SH1106_DisplayNormal(MSIM_SH1106 *dev)
+MSIM_SH1106_DisplayNormal(MSIM_SH1106_t *dev)
 {
 	return append_byte(dev, DC_CMD, CMD_NORMALDISPLAY);
 }
@@ -430,7 +432,7 @@ MSIM_SH1106_DisplayNormal(MSIM_SH1106 *dev)
  * Switch the display to the "inverted" state (1 - pixel's OFF, 0 - pixel's ON).
  */
 int
-MSIM_SH1106_DisplayInvert(MSIM_SH1106 *dev)
+MSIM_SH1106_DisplayInvert(MSIM_SH1106_t *dev)
 {
 	return append_byte(dev, DC_CMD, CMD_INVERTDISPLAY);
 }
@@ -442,7 +444,7 @@ MSIM_SH1106_DisplayInvert(MSIM_SH1106 *dev)
  * The RAM display data becomes the top line of the OLED screen.
  */
 int
-MSIM_SH1106_SetStartLine(MSIM_SH1106 *dev, uint8_t line)
+MSIM_SH1106_SetStartLine(MSIM_SH1106_t *dev, uint8_t line)
 {
 	return append_byte(dev, DC_CMD, (uint8_t)
 	                   (CMD_SETSTARTLINE | ((uint8_t)(line & 0x3FU))));
@@ -454,7 +456,7 @@ MSIM_SH1106_SetStartLine(MSIM_SH1106 *dev, uint8_t line)
  * operation, the graphic display will be flipped vertically.
  */
 int
-MSIM_SH1106_SetScanDirection(MSIM_SH1106 *dev, uint8_t rvrs)
+MSIM_SH1106_SetScanDirection(MSIM_SH1106_t *dev, uint8_t rvrs)
 {
 	return append_byte(dev, DC_CMD, (uint8_t)
 	                   (MSN(CMD_SETSCANDIR) | (uint8_t)((rvrs << 3)&0x08)));
@@ -467,7 +469,7 @@ MSIM_SH1106_SetScanDirection(MSIM_SH1106 *dev, uint8_t rvrs)
  * selected after a buffer clean call and the first byte/bytes appended.
  */
 static int
-append_byte(MSIM_SH1106 *dev, buf_dtype dc, const uint8_t byte)
+append_byte(MSIM_SH1106_t *dev, buf_dtype dc, const uint8_t byte)
 {
 	int rc = MSIM_SH1106_RC_OK;
 
@@ -506,7 +508,7 @@ append_byte(MSIM_SH1106 *dev, buf_dtype dc, const uint8_t byte)
  * selected after a buffer clean call and the first byte/bytes appended.
  */
 static int
-append_bytes(MSIM_SH1106 *dev, buf_dtype dc, const uint8_t *data, size_t len)
+append_bytes(MSIM_SH1106_t *dev, buf_dtype dc, const uint8_t *data, size_t len)
 {
 	int rc = MSIM_SH1106_RC_OK;
 
@@ -545,7 +547,7 @@ append_bytes(MSIM_SH1106 *dev, buf_dtype dc, const uint8_t *data, size_t len)
  * selected after a buffer clean call and the first byte/bytes appended.
  */
 static int
-append_bytes_PF(MSIM_SH1106 *dev, buf_dtype dc, const uint8_t *d, size_t len)
+append_bytes_PF(MSIM_SH1106_t *dev, buf_dtype dc, const uint8_t *d, size_t len)
 {
 	const uint_farptr_t pdat = (uint_farptr_t) d;
 	int rc = MSIM_SH1106_RC_OK;

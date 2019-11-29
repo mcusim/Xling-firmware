@@ -1,7 +1,9 @@
-/*
+/*-
+ * SPDX-License-Identifier: GPL-3.0-or-later
+ *
  * This file is part of MCUSim, an XSPICE library with microcontrollers.
  *
- * Copyright (C) 2017-2019 MCUSim Developers, see AUTHORS.txt for contributors.
+ * Copyright (C) 2017-2019 MCUSim Developers
  *
  * MCUSim is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by

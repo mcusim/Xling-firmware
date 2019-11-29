@@ -1,7 +1,9 @@
-/*
+/*-
+ * SPDX-License-Identifier: GPL-3.0-or-later
+ *
  * This file is part of MCUSim, an XSPICE library with microcontrollers.
  *
- * Copyright (C) 2017-2019 MCUSim Developers, see AUTHORS.txt for contributors.
+ * Copyright (C) 2017-2019 MCUSim Developers
  *
  * MCUSim is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -74,6 +76,7 @@
  *     If defined, it tells the driver that a display is connected
  *     via a 4-wire SPI.
  */
+
 #include <stdint.h>
 #include <avr/pgmspace.h>
 
@@ -91,11 +94,13 @@ extern "C" {
 #define MSIM_SH1106_RC_UNKNOWNDATTYPE		80
 
 /* The driver config */
-typedef struct MSIM_SH1106DriverConf MSIM_SH1106DriverConf;
+typedef struct MSIM_SH1106DrvConf_t MSIM_SH1106DrvConf_t;
+
 /* A display config */
-typedef struct MSIM_SH1106DisplayConf MSIM_SH1106DisplayConf;
+typedef struct MSIM_SH1106Conf_t MSIM_SH1106Conf_t;
+
 /* An opaque display control block (DCB) */
-typedef struct MSIM_SH1106 MSIM_SH1106;
+typedef struct MSIM_SH1106_t MSIM_SH1106_t;
 
 /*
  * -----------------------------------------------------------------------------
@@ -105,7 +110,7 @@ typedef struct MSIM_SH1106 MSIM_SH1106;
  */
 #if defined(configMSIM_DRV_DISPLAY_SH1106_TWIBB)
 
-struct MSIM_SH1106DisplayConf {
+struct MSIM_SH1106Conf_t {
 	volatile uint8_t *twi_port;	/* I/O port (PORTC, PORTD, etc.) */
 	volatile uint8_t *twi_ddr;	/* DDR of the I/O port (DDRC, etc.) */
 	uint8_t sda;			/* SDA pin number (PC0, PC1, etc.) */
@@ -118,7 +123,7 @@ struct MSIM_SH1106DisplayConf {
  *
  * NOTE: They aren't used in case of the software implemented TWI.
  */
-#define MSIM_SH1106__drvStart()
+#define MSIM_SH1106__drvStart(arg)
 #define MSIM_SH1106__drvStop()
 
 /*
@@ -129,12 +134,12 @@ struct MSIM_SH1106DisplayConf {
  */
 #elif defined(configMSIM_DRV_DISPLAY_SH1106_TWI)
 
-struct MSIM_SH1106DriverConf {
+struct MSIM_SH1106DrvConf_t {
 	uint32_t cpu_f;			/* CPU frequency, in Hz */
 	uint32_t twi_f;			/* TWI (SCL) frequency, in Hz */
 };
 
-struct MSIM_SH1106DisplayConf {
+struct MSIM_SH1106Conf_t {
 	uint8_t twi_addr;		/* TWI address of the display */
 };
 
@@ -144,7 +149,7 @@ struct MSIM_SH1106DisplayConf {
  * NOTE: Don't forget to start the driver before making a call to any
  * driver's API functions.
  */
-int	MSIM_SH1106__drvStart(const MSIM_SH1106DriverConf *);
+int	MSIM_SH1106__drvStart(const MSIM_SH1106DrvConf_t *);
 int	MSIM_SH1106__drvStop(void);
 
 /*
@@ -154,7 +159,7 @@ int	MSIM_SH1106__drvStop(void);
  */
 #elif defined(configMSIM_DRV_DISPLAY_SH1106_SPI4)
 
-struct MSIM_SH1106DriverConf {
+struct MSIM_SH1106DrvConf_t {
 	volatile uint8_t *port_spi;	/* I/O of the SPI port */
 	volatile uint8_t *ddr_spi;	/* DDR of the SPI port */
 	uint8_t mosi;			/* MOSI pin number */
@@ -162,7 +167,7 @@ struct MSIM_SH1106DriverConf {
 	uint8_t sck;			/* SCK pin number */
 };
 
-struct MSIM_SH1106DisplayConf {
+struct MSIM_SH1106Conf_t {
 	volatile uint8_t *rst_port;	/* I/O port for RST pin */
 	volatile uint8_t *rst_ddr;	/* DDR of the port with RST pin */
 	volatile uint8_t *cs_port;	/* I/O port for CS pin */
@@ -180,7 +185,7 @@ struct MSIM_SH1106DisplayConf {
  * NOTE: Don't forget to start the driver before making a call to any
  * driver's API functions.
  */
-int	MSIM_SH1106__drvStart(const MSIM_SH1106DriverConf *);
+int	MSIM_SH1106__drvStart(const MSIM_SH1106DrvConf_t *);
 int	MSIM_SH1106__drvStop(void);
 
 /* -------------------------------------------------------------------------- */
@@ -193,26 +198,26 @@ int	MSIM_SH1106__drvStop(void);
  */
 
 /* DCB utility functions */
-MSIM_SH1106 *	MSIM_SH1106_Init(const MSIM_SH1106DisplayConf *);
-void		MSIM_SH1106_Free(MSIM_SH1106 *);
+MSIM_SH1106_t *	MSIM_SH1106_Init(const MSIM_SH1106Conf_t *);
+void		MSIM_SH1106_Free(MSIM_SH1106_t *);
 
 /* DCB's buffer utility functions */
-int	MSIM_SH1106_bufClear(MSIM_SH1106 *);
-int	MSIM_SH1106_bufSend(MSIM_SH1106 *);
-int	MSIM_SH1106_bufAppend(MSIM_SH1106 *, const uint8_t);
-int	MSIM_SH1106_bufAppendLast(MSIM_SH1106 *, const uint8_t *, size_t);
-int	MSIM_SH1106_bufAppendLast_PF(MSIM_SH1106 *, const uint8_t *, size_t);
+int	MSIM_SH1106_bufClear(MSIM_SH1106_t *);
+int	MSIM_SH1106_bufSend(MSIM_SH1106_t *);
+int	MSIM_SH1106_bufAppend(MSIM_SH1106_t *, const uint8_t);
+int	MSIM_SH1106_bufAppendLast(MSIM_SH1106_t *, const uint8_t *, size_t);
+int	MSIM_SH1106_bufAppendLast_PF(MSIM_SH1106_t *, const uint8_t *, size_t);
 
 /* Display commands */
-int	MSIM_SH1106_SetPage(MSIM_SH1106 *, uint8_t page);
-int	MSIM_SH1106_SetColumn(MSIM_SH1106 *, uint8_t col);
-int	MSIM_SH1106_DisplayOn(MSIM_SH1106 *);
-int	MSIM_SH1106_DisplayOff(MSIM_SH1106 *);
-int	MSIM_SH1106_SetContrast(MSIM_SH1106 *, uint8_t val);
-int	MSIM_SH1106_DisplayNormal(MSIM_SH1106 *);
-int	MSIM_SH1106_DisplayInvert(MSIM_SH1106 *);
-int	MSIM_SH1106_SetStartLine(MSIM_SH1106 *, uint8_t line);
-int	MSIM_SH1106_SetScanDirection(MSIM_SH1106 *, uint8_t reverse);
+int	MSIM_SH1106_SetPage(MSIM_SH1106_t *, uint8_t page);
+int	MSIM_SH1106_SetColumn(MSIM_SH1106_t *, uint8_t col);
+int	MSIM_SH1106_DisplayOn(MSIM_SH1106_t *);
+int	MSIM_SH1106_DisplayOff(MSIM_SH1106_t *);
+int	MSIM_SH1106_SetContrast(MSIM_SH1106_t *, uint8_t val);
+int	MSIM_SH1106_DisplayNormal(MSIM_SH1106_t *);
+int	MSIM_SH1106_DisplayInvert(MSIM_SH1106_t *);
+int	MSIM_SH1106_SetStartLine(MSIM_SH1106_t *, uint8_t line);
+int	MSIM_SH1106_SetScanDirection(MSIM_SH1106_t *, uint8_t reverse);
 
 #ifdef __cplusplus
 }

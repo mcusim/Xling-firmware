@@ -1,24 +1,33 @@
-/*
- * This file is part of MCUSim, an XSPICE library with microcontrollers.
+/*-
+ * SPDX-License-Identifier: GPL-3.0-or-later
  *
- * Copyright (C) 2017-2019 MCUSim Developers, see AUTHORS.txt for contributors.
+ * This file is part of a firmware for Xling, a tamagotchi-like toy.
  *
- * MCUSim is free software: you can redistribute it and/or modify
+ * Copyright (c) 2019 Dmitry Salychev
+ *
+ * Xling firmware is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * MCUSim is distributed in the hope that it will be useful,
+ * Xling firmware is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
- *
- *
- * Several 128x64px example images.
  */
+#ifndef XG_IMAGES_H_
+#define XG_IMAGES_H_ 1
+
+/*
+ * Several images for OLED display, 128x64 px.
+ */
+
+#include <stdint.h>
+#include <avr/pgmspace.h>
+
 static const uint8_t PROGMEM oled_xling1[1024] = {
     0xf0,
     0xf7,
@@ -3099,3 +3108,5 @@ static const uint8_t PROGMEM oled_xling3[1024] = {
     0x00,
     0x00
 };
+
+#endif /* XG_IMAGES_H_ */

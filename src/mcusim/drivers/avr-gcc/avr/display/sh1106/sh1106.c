@@ -1,7 +1,9 @@
-/*
+/*-
+ * SPDX-License-Identifier: GPL-3.0-or-later
+ *
  * This file is part of MCUSim, an XSPICE library with microcontrollers.
  *
- * Copyright (C) 2017-2019 MCUSim Developers, see AUTHORS.txt for contributors.
+ * Copyright (C) 2017-2019 MCUSim Developers
  *
  * MCUSim is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -23,15 +25,15 @@
 #include <avr/pgmspace.h>
 #include <util/delay.h>
 
-#include "mcusim/drivers/avr-gcc/avr/display/sh1106/sh1106.h"
-
 /*
  * Driver should be aware of the display connected via one of the interfaces
  * mentioned below.
  *
- * Interface-specific implementations can be found in the "sh1106_*.c" files,
- * like "sh1106_spi4.c" for 4-wire SPI interface.
+ * NOTE: Interface-specific implementations can be found in the "sh1106_*.c"
+ * files, like "sh1106_spi4.c" for 4-wire SPI interface.
  */
+
+#include "mcusim/drivers/avr-gcc/avr/display/sh1106/sh1106.h"
 
 #if !defined(configMSIM_DRV_DISPLAY_SH1106_TWIBB) && \
     !defined(configMSIM_DRV_DISPLAY_SH1106_TWI) && \

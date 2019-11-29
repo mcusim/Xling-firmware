@@ -1,14 +1,16 @@
+#-
+# SPDX-License-Identifier: GPL-3.0-or-later
 #
-# This file is part of MCUSim, an XSPICE library with microcontrollers.
+# This file is part of a firmware for Xling, a tamagotchi-like toy.
 #
-# Copyright (C) 2017-2019 MCUSim Developers, see AUTHORS.txt for contributors.
+# Copyright (c) 2019 Dmitry Salychev
 #
-# MCUSim is free software: you can redistribute it and/or modify
+# Xling firmware is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation, either version 3 of the License, or
 # (at your option) any later version.
 #
-# MCUSim is distributed in the hope that it will be useful,
+# Xling firmware is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
@@ -57,18 +59,21 @@ project(Xling-firmware C)
 # Xling-firmware version
 set(XLING_MAJOR_VERSION 0)
 set(XLING_MINOR_VERSION 4)
-set(XLING_PATCH_VERSION 4)
+set(XLING_PATCH_VERSION 5)
 
 # Target file name (without extension) and version
 set(TARGET_OUTPUT_BASENAME "Xling-firmware-${XLING_MAJOR_VERSION}.${XLING_MINOR_VERSION}.${XLING_PATCH_VERSION}")
 
 # ------------------------------------------------------------------------------
-# MCU type and clock frequency
+# AVR and AVRDUDE configuration
 # ------------------------------------------------------------------------------
 set(AVR_MCU "atmega1284p")
 set(AVR_FREQ 12000000UL)
-#set(AVR_PORT "/dev/ttyU0")		# for FreeBSD
-set(AVR_PORT "/dev/ttyACM0")		# for GNU/Linux
+set(AVR_PORT "/dev/ttyU0")		# for FreeBSD
+#set(AVR_PORT "/dev/ttyACM0")		# for GNU/Linux
+set(AVR_BAUDRATE 115200)
+set(AVR_PROG "stk500v2")
+set(AVR_PART "m1284p")
 
 set(TARGET_OUTPUT_FILE "${TARGET_OUTPUT_BASENAME}.elf")
 set(TARGET_OUTPUT_DIR "${CMAKE_CURRENT_BINARY_DIR}")
@@ -141,9 +146,9 @@ message(STATUS "Linker flags: ${CMAKE_EXE_LINKER_FLAGS}")
 # ------------------------------------------------------------------------------
 # Xling-firmware configuration
 # ------------------------------------------------------------------------------
-add_definitions("-DconfigXLNG_MAJOR_VER=${XLING_MAJOR_VERSION}")
-add_definitions("-DconfigXLNG_MINOR_VER=${XLING_MINOR_VERSION}")
-add_definitions("-DconfigXLNG_PATCH_VER=${XLING_PATCH_VERSION}")
+add_definitions("-DconfigXG_MAJOR_VER=${XLING_MAJOR_VERSION}")
+add_definitions("-DconfigXG_MINOR_VER=${XLING_MINOR_VERSION}")
+add_definitions("-DconfigXG_PATCH_VER=${XLING_PATCH_VERSION}")
 
 # ------------------------------------------------------------------------------
 # MCUSim drivers configuration
@@ -189,6 +194,8 @@ include_directories("include/")
 set(XLING_SRC
 	src/fuse.c
 	src/main.c
+	src/display_task.c
+	src/battery_monitor_task.c
 	src/mcusim/drivers/avr-gcc/avr/display/sh1106/sh1106.c
 	src/mcusim/drivers/avr-gcc/avr/display/sh1106/sh1106_graphics.c
 	src/mcusim/drivers/avr-gcc/avr/display/sh1106/sh1106_spi4.c
@@ -245,7 +252,7 @@ add_custom_command(
 # ------------------------------------------------------------------------------
 add_custom_command(
 	TARGET "mcu" POST_BUILD
-	COMMAND ${AVR_DUDE} -p m1284p -b 115200 -P ${AVR_PORT} -c stk500v2)
+	COMMAND ${AVR_DUDE} -p ${AVR_PART} -b ${AVR_BAUDRATE} -P ${AVR_PORT} -c ${AVR_PROG})
 
 # ------------------------------------------------------------------------------
 # Upload command configurtion
@@ -257,4 +264,4 @@ add_custom_command(
 # ------------------------------------------------------------------------------
 add_custom_command(
 	TARGET "upload" POST_BUILD
-	COMMAND ${AVR_DUDE} -p m1284p -b 115200 -P ${AVR_PORT} -c stk500v2 -Uflash:w:${TARGET_OUTPUT_DIR}/${TARGET_OUTPUT_BASENAME}.hex)
+	COMMAND ${AVR_DUDE} -p ${AVR_PART} -b ${AVR_BAUDRATE} -P ${AVR_PORT} -c ${AVR_PROG} -Uflash:w:${TARGET_OUTPUT_DIR}/${TARGET_OUTPUT_BASENAME}.hex)

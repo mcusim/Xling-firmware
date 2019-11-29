@@ -1,7 +1,7 @@
 /*
  * This file is part of MCUSim, an XSPICE library with microcontrollers.
  *
- * Copyright (C) 2017-2019 MCUSim Developers, see AUTHORS.txt for contributors.
+ * Copyright (C) 2017-2019 MCUSim Developers
  *
  * MCUSim is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -22,8 +22,9 @@
 /*
  * Graphic functions for SH1106-based displays.
  */
+
 #include "mcusim/drivers/avr-gcc/avr/display/sh1106/sh1106.h"
 
-int	MSIM_SH1106_Print(struct MSIM_SH1106 *dev, const char *text);
+int	MSIM_SH1106_Print(MSIM_SH1106_t *dev, const char *text);
 
 #endif /* MSIM_GRH_DISPLAY_SH1106_H_ */
