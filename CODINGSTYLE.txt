@@ -23,6 +23,7 @@ Content
     2.1. Non-local include files
     2.2. Local include files
     2.3. Conditional includes
+3. Namespace
 
 1. Copyright header
 -------------------
@@ -205,12 +206,50 @@ Content
       * It's important to describe this specific configuration of the include
       * files.
       *
-      * NOTE: Don't hesitate to provide a plenty of details to cover possible
-      * consequences of such "hacky" approach.
+      * NOTE: Don't hesitate to provide a plenty of the details to cover
+      * possible consequences of such a hacky approach.
       */
-     #define A_CONFIG_OPTION_FOR_MCUSIM_DRIVERS		5
      #if defined(WITH_MCUSIM_DRIVERS)
      #include "mcusim/drivers/avr-gcc/avr/display/sh1106/sh1106.h"
      #include "mcusim/drivers/avr-gcc/avr/display/sh1106/sh1106_graphics.h"
-     #endif
+     #endif /* WITH_MCUSIM_DRIVERS */
 
+3. Namespace
+------------
+
+ Do not #define or declare names in the implementation namespace except for
+ implementing application interfaces.
+
+ It means that a header file should contain macros, types and signatures of the
+ functions which are supposed to be part of its interface which can be used
+ throught the program.
+
+ Names of these parts of the interface may contain prefixes in order to avoid
+ collisions:
+
+     typedef struct XG_TaskArgs_t {
+             QueueHandle_t	display_q;	/* Display task queue. */
+             void *		task_arg;	/* Task-specific argument. */
+     } XG_TaskArgs_t;
+
+     typedef enum XG_MsgType_t {
+             XG_MSG_BATLVL,           /* Current battery level, in %. */
+             XG_MSG_BATSTATPIN,       /* Battery status pin value. */
+             XG_MSG_BATCHARGING,      /* Battery started charging. */
+             XG_MSG_BATSTOPCHARGING,  /* Battery stopped charging. */
+     } XG_MsgType_t;
+
+     void        XG_DisplayTask(void *) __attribute__((noreturn));
+     void        XG_BatteryMonitorTask(void *) __attribute__((noreturn));
+
+ Any functions implemented in a source file should have an internal linkage
+ (i.e. declared with "static" keyword) except for the functions which form
+ an interface of the file (declared in the header files usually).
+
+ Variables should also have an internal linkage (i.e. declared with "static"
+ keyword) if they're declared in a translation unit, but outside of any
+ function.
+
+ Variables with external linkage (i.e. declared without any keyword or with
+ "extern" one) are acceptable, but MUST be documented. It is strictly adviced to
+ avoid using such global variables.

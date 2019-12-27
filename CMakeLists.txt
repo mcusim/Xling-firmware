@@ -59,7 +59,7 @@ project(Xling-firmware C)
 # Xling-firmware version
 set(XLING_MAJOR_VERSION 0)
 set(XLING_MINOR_VERSION 4)
-set(XLING_PATCH_VERSION 5)
+set(XLING_PATCH_VERSION 6)
 
 # Target file name (without extension) and version
 set(TARGET_OUTPUT_BASENAME "Xling-firmware-${XLING_MAJOR_VERSION}.${XLING_MINOR_VERSION}.${XLING_PATCH_VERSION}")
@@ -196,6 +196,7 @@ set(XLING_SRC
 	src/main.c
 	src/display_task.c
 	src/battery_monitor_task.c
+	src/sleep_mode_task.c
 	src/mcusim/drivers/avr-gcc/avr/display/sh1106/sh1106.c
 	src/mcusim/drivers/avr-gcc/avr/display/sh1106/sh1106_graphics.c
 	src/mcusim/drivers/avr-gcc/avr/display/sh1106/sh1106_spi4.c

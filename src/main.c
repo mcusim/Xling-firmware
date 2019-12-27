@@ -58,9 +58,8 @@
 int
 main(void)
 {
-	XG_TaskArgs_t display_args;
-	XG_TaskArgs_t batmon_args;
-	QueueHandle_t display_q;
+	XG_TaskArgs_t display_args, batmon_args;
+	QueueHandle_t display_q, batmon_q, sleepmod_q;
 	BaseType_t status;
 
 	/* Configure PORTC pins as output. */
@@ -69,8 +68,10 @@ main(void)
 	DDRA = 0x00;
 	PORTA = 0x00;
 
-	/* Prepare a display task queue. */
+	/* Prepare the task queues. */
 	display_q = xQueueCreate(3, sizeof(XG_Msg_t));
+	batmon_q = xQueueCreate(3, sizeof(XG_Msg_t));
+	sleepmod_q = xQueueCreate(3, sizeof(XG_Msg_t));
 
 	/* Prepare task arguments. */
 	display_args.display_q = display_q;

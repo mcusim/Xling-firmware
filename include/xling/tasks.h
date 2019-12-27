@@ -38,6 +38,8 @@
  */
 typedef struct XG_TaskArgs_t {
 	QueueHandle_t	display_q;	/* Display task queue. */
+	QueueHandle_t	batmon_q;	/* Battery monitor queue. */
+	QueueHandle_t	sleepmod_q;	/* Sleep mode task queue. */
 	void *		task_arg;	/* Task-specific argument. */
 } XG_TaskArgs_t;
 
@@ -49,6 +51,19 @@ typedef enum XG_MsgType_t {
 	XG_MSG_BATSTATPIN,		/* Battery status pin value. */
 	XG_MSG_BATCHARGING,		/* Battery started charging. */
 	XG_MSG_BATSTOPCHARGING,		/* Battery stopped charging. */
+
+	/*
+	 * These messages are intended to be used by the SleepModeTask and all
+	 * of the other tasks in order to prepare the device to be switched to
+	 * sleep mode.
+	 *
+	 * It's done by suspending all of the tasks by the SleeModeTask in order
+	 * to let the Idle task to be the only one which is able to run.
+	 */
+	XG_MSG_TASKSUSP_REQ,		/* A request to suspend the task. */
+	XG_MSG_TASKSUSP_RESOK,		/* Task suspended correctly. */
+	XG_MSG_TASKSUSP_RESNOTNOW,	/* Try to suspend the task again. */
+	XG_MSG_TASKSUSP_RESFAIL,	/* Cannot suspend the task. */
 } XG_MsgType_t;
 
 /*
@@ -59,11 +74,9 @@ typedef struct XG_Msg_t {
 	XG_MsgType_t	type;		/* Type of the message. */
 } XG_Msg_t;
 
-/*
- * Xling tasks for FreeRTOS scheduler.
- */
-void	XG_DisplayTask(void *) __attribute__((noreturn));
-void	XG_BatteryMonitorTask(void *) __attribute__((noreturn));
-//void	XG_HIDTask(void *) __attribute__((noreturn));
+/* Functions to initialize Xling tasks for the FreeRTOS scheduler. */
+int	XG_InitDisplayTask(XG_TaskArgs_t *, UBaseType_t);
+int	XG_InitBatteryMonitorTask(XG_TaskArgs_t *, UBaseType_t);
+int	XG_InitSleepModeTask(XG_TaskArgs_t *, UBaseType_t);
 
 #endif /* XG_TASKS_H_ */

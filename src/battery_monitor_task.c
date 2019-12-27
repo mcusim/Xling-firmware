@@ -34,10 +34,12 @@
  * NOTE: The ADC interrupt will be occupied by the task.
  */
 
+/* FreeRTOS headers. */
 #include "FreeRTOS.h"
 #include "task.h"
 #include "queue.h"
 
+/* Xling headers. */
 #include "xling/tasks.h"
 
 /* Local macros. */
@@ -48,7 +50,7 @@
 static volatile uint16_t _bat_lvl;	/* Raw battery voltage from ADC. */
 static volatile uint8_t _bat_stat;	/* Battery status pin value. */
 
-/* Local functions declarations. */
+/* Local functions. */
 static void init_adc(void);
 
 void
@@ -167,9 +169,9 @@ ISR(ADC_vect)
 	const uint16_t lvl_low = ADCL;
 	const uint16_t lvl_high = (ADCH << 8) & 0x0300;
 
-	/* Sample the battery voltage level */
+	/* Sample the battery voltage level. */
 	_bat_lvl = (uint16_t)((lvl_high) | (lvl_low));
 
-	/* Sample the battery status pin */
+	/* Sample the battery status pin. */
 	_bat_stat = PINA & 1U;
 }

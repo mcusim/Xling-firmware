@@ -153,7 +153,8 @@ XG_DisplayTask(void *arg)
 
 		if (status == pdPASS) {
 			/*
-			 * Data have successfully been received from the queue.
+			 * A message has successfully been received from
+			 * the queue.
 			 */
 			switch (msg.type) {
 			case XG_MSG_BATLVL:
