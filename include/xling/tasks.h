@@ -39,7 +39,7 @@
 typedef struct XG_TaskArgs_t {
 	QueueHandle_t	display_q;	/* Display task queue. */
 	QueueHandle_t	batmon_q;	/* Battery monitor queue. */
-	QueueHandle_t	sleepmod_q;	/* Sleep mode task queue. */
+	QueueHandle_t	slpmod_q;	/* Sleep mode task queue. */
 	void *		task_arg;	/* Task-specific argument. */
 } XG_TaskArgs_t;
 
@@ -75,8 +75,8 @@ typedef struct XG_Msg_t {
 } XG_Msg_t;
 
 /* Functions to initialize Xling tasks for the FreeRTOS scheduler. */
-int	XG_InitDisplayTask(XG_TaskArgs_t *, UBaseType_t);
-int	XG_InitBatteryMonitorTask(XG_TaskArgs_t *, UBaseType_t);
-int	XG_InitSleepModeTask(XG_TaskArgs_t *, UBaseType_t);
+int	XG_InitDisplayTask(XG_TaskArgs_t *, UBaseType_t, TaskHandle_t *);
+int	XG_InitBatteryMonitorTask(XG_TaskArgs_t *, UBaseType_t, TaskHandle_t *);
+int	XG_InitSleepModeTask(XG_TaskArgs_t *, UBaseType_t, TaskHandle_t *);
 
 #endif /* XG_TASKS_H_ */

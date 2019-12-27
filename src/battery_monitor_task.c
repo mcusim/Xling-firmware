@@ -45,28 +45,56 @@
 /* Local macros. */
 #define SET_BIT(byte, bit)	((byte) |= (1U << (bit)))
 #define CLEAR_BIT(byte, bit)	((byte) &= (uint8_t) ~(1U << (bit)))
+#define TNAME			"Battery Monitor Task"
+#define STSZ			(configMINIMAL_STACK_SIZE)
 
 /* Local variables. */
 static volatile uint16_t _bat_lvl;	/* Raw battery voltage from ADC. */
 static volatile uint8_t _bat_stat;	/* Battery status pin value. */
+static volatile TaskHandle_t _task_handle;
 
 /* Local functions. */
 static void init_adc(void);
+static void batmon_task(void *) __attribute__((noreturn));
 
-void
-XG_BatteryMonitorTask(void *arg)
+int
+XG_InitBatteryMonitorTask(XG_TaskArgs_t *arg, UBaseType_t prior,
+                          TaskHandle_t *task_handle)
+{
+	BaseType_t stat;
+	TaskHandle_t th;
+	int rc = 0;
+
+	/*
+	 * Configure ADC to measure a battery voltage and sample the battery
+	 * status pin. We don't have to worry about interrupts and FreeRTOS
+	 * scheduler - they shouldn't be active at the moment.
+	 */
+	init_adc();
+
+	/* Create the battery monitor task. */
+	stat = xTaskCreate(batmon_task, TNAME, STSZ, arg, prior, &th);
+
+	if (stat != pdPASS) {
+		/* Sleep mode task couldn't be created. */
+		rc = 1;
+	} else {
+		/* Task has been created successfully. */
+		if (task_handle != NULL) {
+			(*task_handle) = th;
+		}
+		_task_handle = th;
+	}
+
+	return rc;
+}
+
+static void
+batmon_task(void *arg)
 {
 	const XG_TaskArgs_t * const args = (XG_TaskArgs_t *) arg;
 	XG_Msg_t msg;
 	BaseType_t status;
-
-	/*
-	 * Configure ADC to measure a battery voltage and sample the battery
-	 * status pin.
-	 */
-	taskENTER_CRITICAL();
-	init_adc();
-	taskEXIT_CRITICAL();
 
 	/* Task loop */
 	while (1) {

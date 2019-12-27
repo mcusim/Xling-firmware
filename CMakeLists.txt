@@ -59,7 +59,7 @@ project(Xling-firmware C)
 # Xling-firmware version
 set(XLING_MAJOR_VERSION 0)
 set(XLING_MINOR_VERSION 4)
-set(XLING_PATCH_VERSION 6)
+set(XLING_PATCH_VERSION 7)
 
 # Target file name (without extension) and version
 set(TARGET_OUTPUT_BASENAME "Xling-firmware-${XLING_MAJOR_VERSION}.${XLING_MINOR_VERSION}.${XLING_PATCH_VERSION}")
@@ -69,8 +69,8 @@ set(TARGET_OUTPUT_BASENAME "Xling-firmware-${XLING_MAJOR_VERSION}.${XLING_MINOR_
 # ------------------------------------------------------------------------------
 set(AVR_MCU "atmega1284p")
 set(AVR_FREQ 12000000UL)
-set(AVR_PORT "/dev/ttyU0")		# for FreeBSD
-#set(AVR_PORT "/dev/ttyACM0")		# for GNU/Linux
+#set(AVR_PORT "/dev/ttyU0")		# for FreeBSD
+set(AVR_PORT "/dev/ttyACM0")		# for GNU/Linux
 set(AVR_BAUDRATE 115200)
 set(AVR_PROG "stk500v2")
 set(AVR_PART "m1284p")

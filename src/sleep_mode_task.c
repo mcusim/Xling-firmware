@@ -35,6 +35,10 @@
 /* Xling headers. */
 #include "xling/tasks.h"
 
+/* Local macros. */
+#define TNAME			"Sleep Mode Task"
+#define STSZ			(configMINIMAL_STACK_SIZE)
+
 /* Local variables. */
 static volatile TaskHandle_t _task_handle;
 
@@ -42,19 +46,25 @@ static volatile TaskHandle_t _task_handle;
 static void sleepmod_task(void *) __attribute__((noreturn));
 
 int
-XG_InitSleepModeTask(XG_TaskArgs_t *arg, UBaseType_t priority)
+XG_InitSleepModeTask(XG_TaskArgs_t *arg, UBaseType_t prior,
+                     TaskHandle_t *task_handle)
 {
 	BaseType_t stat;
+	TaskHandle_t th;
 	int rc = 0;
 
 	/* Create the sleep mode task. */
-	stat = xTaskCreate(sleepmod_task, "Sleep Mode Task",
-	                   configMINIMAL_STACK_SIZE, &display_args, priority,
-	                   &_task_handle);
+	stat = xTaskCreate(sleepmod_task, TNAME, STSZ, arg, prior, &th);
 
-	/* Sleep mode task couldn't be created. */
 	if (stat != pdPASS) {
+		/* Sleep mode task couldn't be created. */
 		rc = 1;
+	} else {
+		/* Task has been created successfully. */
+		if (task_handle != NULL) {
+			(*task_handle) = th;
+		}
+		_task_handle = th;
 	}
 
 	return rc;

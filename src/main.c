@@ -44,6 +44,16 @@
 
 #include "xling/tasks.h"
 
+/* A task initialization function (helper data type only). */
+typedef int (*task_initfunc_t)(XG_TaskArgs_t *, UBaseType_t, TaskHandle_t *);
+
+/* A task initialization block (helper data type only). */
+typedef struct task_initblk_t {
+	task_initfunc_t initf;
+	XG_TaskArgs_t *arg;
+	UBaseType_t priority;
+} task_initblk_t;
+
 /* Local macros. */
 #define SET_BIT(byte, bit)	((byte) |= (1U << (bit)))
 #define CLEAR_BIT(byte, bit)	((byte) &= (uint8_t) ~(1U << (bit)))
@@ -54,13 +64,25 @@
 #define BTN2			PD2
 #define BTN3			PB4
 
+/* Local variables. */
+static XG_TaskArgs_t _display_args;
+static XG_TaskArgs_t _batmon_args;
+static XG_TaskArgs_t _slpmod_args;
+
+static const task_initblk_t _init_blocks[] = {
+	{ .initf=XG_InitDisplayTask, .arg=&_display_args, .priority=3 },
+	{ .initf=XG_InitBatteryMonitorTask, .arg=&_batmon_args, .priority=1 },
+	{ .initf=XG_InitSleepModeTask, .arg=&_slpmod_args, .priority=1 },
+};
+const size_t _tib_num = sizeof(_init_blocks) / sizeof(_init_blocks[0]);
+/* END Local variables. */
+
 /* Entry point. */
 int
 main(void)
 {
-	XG_TaskArgs_t display_args, batmon_args;
-	QueueHandle_t display_q, batmon_q, sleepmod_q;
-	BaseType_t status;
+	const task_initblk_t *tib;
+	int rc = 0;
 
 	/* Configure PORTC pins as output. */
 	DDRC = 0xFF;
@@ -68,43 +90,33 @@ main(void)
 	DDRA = 0x00;
 	PORTA = 0x00;
 
-	/* Prepare the task queues. */
-	display_q = xQueueCreate(3, sizeof(XG_Msg_t));
-	batmon_q = xQueueCreate(3, sizeof(XG_Msg_t));
-	sleepmod_q = xQueueCreate(3, sizeof(XG_Msg_t));
+	/* Initialize tasks arguments. */
+	_display_args.display_q = xQueueCreate(3, sizeof(XG_Msg_t)),
+	_display_args.batmon_q = xQueueCreate(3, sizeof(XG_Msg_t)),
+	_display_args.slpmod_q = xQueueCreate(3, sizeof(XG_Msg_t)),
+	_batmon_args = _display_args;
+	_slpmod_args = _display_args;
 
-	/* Prepare task arguments. */
-	display_args.display_q = display_q;
-	batmon_args.display_q = display_q;
+	/* Create and initialize Xling tasks. */
+	for (size_t i = 0; i < _tib_num; i++) {
+		tib = &_init_blocks[i];
 
-	do {
-		if (display_q == NULL) {
-			/* The display queue couldn't be created. */
+		/* Initialize a task. */
+		rc = tib->initf(tib->arg, tib->priority, NULL);
+
+		if (rc != 0) {
+			/* Task couldn't be created/initialized successfully. */
 			break;
 		}
+	}
 
-		/* Create the display task. */
-		status = xTaskCreate(XG_DisplayTask, "display", 1024,
-		                     &display_args, 3, NULL);
-		if (status != pdPASS) {
-			/* Display task couldn't be created. */
-			break;
-		}
-
-		/* Create the battery monitor task. */
-		status = xTaskCreate(XG_BatteryMonitorTask, "batmon", 1024,
-		                     &batmon_args, 1, NULL);
-		if (status != pdPASS) {
-			/* Battery monitor task couldn't be created. */
-			break;
-		}
-
-		/* Start the FreeRTOS scheduler. */
+	/* Start the FreeRTOS scheduler. */
+	if (rc == 0) {
 		vTaskStartScheduler();
+	}
 
-		/* Stop the display driver. */
-		MSIM_SH1106__drvStop();
-	} while (0);
+	/* Stop the display driver. */
+	MSIM_SH1106__drvStop();
 
 	/*
 	 * If all is well then main() will never reach here as the scheduler
@@ -112,7 +124,7 @@ main(void)
 	 * likely that there was insufficient heap memory available for the
 	 * display queue or tasks to be created.
 	 */
-	while(1);
+	while (1);
 
 	return 0;
 }

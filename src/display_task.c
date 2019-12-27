@@ -50,17 +50,14 @@
 /* Local macros. */
 #define SET_BIT(byte, bit)	((byte) |= (1U << (bit)))
 #define CLEAR_BIT(byte, bit)	((byte) &= (uint8_t) ~(1U << (bit)))
-
-/* OLED pins */
-#define OLED_DC			PC5
-#define OLED_RST		PC6
-#define OLED_CS			PC7
-
-/* OLED SPI pins */
-#define OLED_MOSI		PB5
-#define OLED_MISO		PB6
-#define OLED_SCK		PB7
-/* END Local macros. */
+#define TNAME			"Display Task"
+#define STSZ			(configMINIMAL_STACK_SIZE)
+#define OLED_DC			PC5		/* OLED Data/Command pin. */
+#define OLED_RST		PC6		/* OLED Reset pin. */
+#define OLED_CS			PC7		/* OLED Chip Select pin. */
+#define OLED_MOSI		PB5		/* OLED SPI pin. */
+#define OLED_MISO		PB6		/* OLED SPI pin. */
+#define OLED_SCK		PB7		/* OLED SPI pin. */
 
 /* Local variables. */
 static const MSIM_SH1106DrvConf_t _driver_conf = {
@@ -81,25 +78,25 @@ static const MSIM_SH1106Conf_t _display_conf = {
 	.cs = OLED_CS,
 	.dc = OLED_DC,
 };
-static volatile TaskHandle_t _display_task;
+static volatile TaskHandle_t _task_handle;
 
 /* Local functions declarations. */
 static void init_timer3(void);
+static void display_task(void *) __attribute__((noreturn));
 
-void
-XG_DisplayTask(void *arg)
+int
+XG_InitDisplayTask(XG_TaskArgs_t *arg, UBaseType_t prior,
+                   TaskHandle_t *task_handle)
 {
-	const XG_TaskArgs_t * const args = (XG_TaskArgs_t *) arg;
-	const uint8_t *ptr;
-	MSIM_SH1106_t * const display = MSIM_SH1106_Init(&_display_conf);
-	uint8_t frame_id = 1, change_frame = 1, col = 0;
-	uint16_t bat_lvl = 0, bat_stat = 0;
-	char textbuf[32];
-	TickType_t delay;
-	BaseType_t status;
-	XG_Msg_t msg;
+	BaseType_t stat;
+	TaskHandle_t th;
+	int rc = 0;
 
-	taskENTER_CRITICAL();
+	/*
+	 * Configure the display and its driver. We don't have to worry about
+	 * interrupts and FreeRTOS scheduler - they shouldn't be active at the
+	 * moment.
+	 */
 	{
 		/* Keep CS high. Display isn't selected by default. */
 		SET_BIT(PORTC, OLED_CS);
@@ -116,10 +113,36 @@ XG_DisplayTask(void *arg)
 		/* Setup Timer 3 to resume the display task. */
 		init_timer3();
 	}
-	taskEXIT_CRITICAL();
 
-	/* Obtain a handle of the display task. */
-	_display_task = xTaskGetHandle("display");
+	/* Create the display task. */
+	stat = xTaskCreate(display_task, TNAME, STSZ, arg, prior, &th);
+
+	if (stat != pdPASS) {
+		/* Sleep mode task couldn't be created. */
+		rc = 1;
+	} else {
+		/* Task has been created successfully. */
+		if (task_handle != NULL) {
+			(*task_handle) = th;
+		}
+		_task_handle = th;
+	}
+
+	return rc;
+}
+
+static void
+display_task(void *arg)
+{
+	const XG_TaskArgs_t * const args = (XG_TaskArgs_t *) arg;
+	const uint8_t *ptr;
+	MSIM_SH1106_t * const display = MSIM_SH1106_Init(&_display_conf);
+	uint8_t frame_id = 1, change_frame = 1, col = 0;
+	uint16_t bat_lvl = 0, bat_stat = 0;
+	char textbuf[32];
+	TickType_t delay;
+	BaseType_t status;
+	XG_Msg_t msg;
 
 	/* Setup an OLED display. */
 	MSIM_SH1106_DisplayOff(display);
@@ -308,7 +331,7 @@ init_timer3(void)
 ISR(TIMER3_COMPA_vect)
 {
 	/* Resume the suspended task. */
-	const BaseType_t yield = xTaskResumeFromISR(_display_task);
+	const BaseType_t yield = xTaskResumeFromISR(_task_handle);
 
 	if (yield == pdTRUE) {
 		/*
