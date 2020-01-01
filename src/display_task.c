@@ -30,6 +30,9 @@
  * A display task.
  *
  * It is supposed to be the only task which updates the display.
+ *
+ * NOTE: An interrupt of the 16-bit Timer 3 and its compare-match channel A is
+ * used to resume the display updating task.
  */
 
 #include "FreeRTOS.h"

@@ -26,6 +26,7 @@
 #include <avr/io.h>
 #include <avr/interrupt.h>
 #include <avr/pgmspace.h>
+#include <avr/wdt.h>
 #include <util/delay.h>
 
 /*
@@ -33,6 +34,9 @@
  *
  * An initial configuration of the microcontroller will be performed. Tasks and
  * FreeRTOS scheduler will be created and started here.
+ *
+ * NOTE: An interrupt of the 16-bit Timer 1 and its compare-match channel A is
+ * used to generate a tick interrupt for the FreeRTOS scheduler.
  */
 
 #include "FreeRTOS.h"
@@ -74,8 +78,14 @@ static const task_initblk_t _init_blocks[] = {
 	{ .initf=XG_InitBatteryMonitorTask, .arg=&_batmon_args, .priority=1 },
 	{ .initf=XG_InitSleepModeTask, .arg=&_slpmod_args, .priority=1 },
 };
-const size_t _tib_num = sizeof(_init_blocks) / sizeof(_init_blocks[0]);
+static const size_t _tib_num = sizeof(_init_blocks) / sizeof(_init_blocks[0]);
+static uint8_t _mcusr_mirror __attribute__ ((section (".noinit")));
 /* END Local variables. */
+
+/* Local functions declarations. */
+static void disable_wdt(void)
+	__attribute__((naked))
+	__attribute__((section(".init3")));
 
 /* Entry point. */
 int
@@ -127,6 +137,32 @@ main(void)
 	while (1);
 
 	return 0;
+}
+
+/*
+ * Note that for effectively any AVR that has the option to generate WDT
+ * interrupts, the watchdog timer remains active even after a system reset
+ * (except a power-on condition), using the fastest prescaler value
+ * (approximately 15 ms).
+ *
+ * It is therefore required to turn off the watchdog early during program
+ * startup.
+ *
+ * NOTE: https://www.nongnu.org/avr-libc/user-manual/group__avr__watchdog.html
+ */
+static void
+disable_wdt(void)
+{
+	/*
+	 * Saving the value of MCUSR in mcusr_mirror is only needed if the
+	 * application later wants to examine the reset source, but in
+	 * particular, clearing the watchdog reset flag before disabling the
+	 * watchdog is required, according to the datasheet.
+	 */
+	_mcusr_mirror = MCUSR;
+	MCUSR = 0;
+
+	wdt_disable();
 }
 
 /*

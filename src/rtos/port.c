@@ -25,6 +25,8 @@
  */
 #include <stdlib.h>
 #include <avr/interrupt.h>
+#include <avr/sleep.h>
+#include <avr/wdt.h>
 
 /*
  * Implementation of the functions defined in portable.h for ATMega1284P MCU.
@@ -45,7 +47,9 @@
 #define portCLOCK_PRESCALER			((uint32_t) 64)
 #define portCOMPARE_MATCH_A_INTERRUPT_ENABLE	((uint8_t) 0x02)
 
-/*-----------------------------------------------------------*/
+/* Local macros. */
+#define SET_BIT(byte, bit)	((byte) |= (1U << (bit)))
+#define CLEAR_BIT(byte, bit)	((byte) &= (uint8_t) ~(1U << (bit)))
 
 /*
  * We require the address of the pxCurrentTCB variable, but don't want to know
@@ -53,8 +57,6 @@
  */
 typedef void TCB_t;
 extern volatile TCB_t * volatile pxCurrentTCB;
-
-/*-----------------------------------------------------------*/
 
 /*
  * Macro to save all the general purpose registers, the save the stack pointer
@@ -115,7 +117,6 @@ extern volatile TCB_t * volatile pxCurrentTCB;
 			"in	r0, 0x3e			\n\t"	\
 			"st	x+, r0				\n\t"	\
 		);
-
 /*
  * Opposite to portSAVE_CONTEXT().  Interrupts will have been disabled during
  * the context save so we can write to the stack pointer.
@@ -163,15 +164,14 @@ extern volatile TCB_t * volatile pxCurrentTCB;
 			"pop	r0				\n\t"	\
 		);
 
-/*-----------------------------------------------------------*/
+/* Local functions declarations. */
+static void	sleep(uint8_t mode);
+static void	set_wake_timer(TickType_t idle_time);
+static void	setup_timer_interrupt(void);
+static void	stop_tick_timer(void);
+static void	start_tick_timer(void);
 
-/* Perform hardware setup to enable ticks from timer 1, compare match A. */
-static void prvSetupTimerInterrupt(void);
-/*-----------------------------------------------------------*/
-
-/*
- * See header file for description.
- */
+/* See header file for description. */
 StackType_t *
 pxPortInitialiseStack(StackType_t *pxTopOfStack, TaskFunction_t pxCode, void *pvParameters)
 {
@@ -301,12 +301,11 @@ pxPortInitialiseStack(StackType_t *pxTopOfStack, TaskFunction_t pxCode, void *pv
 
 	return pxTopOfStack;
 }
-/*-----------------------------------------------------------*/
 
 BaseType_t xPortStartScheduler( void )
 {
 	/* Setup the hardware to generate the tick. */
-	prvSetupTimerInterrupt();
+	setup_timer_interrupt();
 
 	/* Restore the context of the first task that is going to run. */
 	portRESTORE_CONTEXT();
@@ -321,7 +320,6 @@ BaseType_t xPortStartScheduler( void )
 	/* Should not get here. */
 	return pdTRUE;
 }
-/*-----------------------------------------------------------*/
 
 void vPortEndScheduler( void )
 {
@@ -330,7 +328,6 @@ void vPortEndScheduler( void )
 	 * disable the tick interrupt here.
 	 */
 }
-/*-----------------------------------------------------------*/
 
 /*
  * Manual context switch.  The first thing we do is save the registers so we
@@ -344,7 +341,6 @@ void vPortYield( void )
 
 	asm volatile ( "ret" );
 }
-/*-----------------------------------------------------------*/
 
 /*
  * Context switch function used by the tick.  This must be identical to
@@ -364,12 +360,125 @@ void vPortYieldFromTick( void )
 
 	asm volatile ( "ret" );
 }
-/*-----------------------------------------------------------*/
 
 /*
- * Setup timer 1 compare match A to generate a tick interrupt.
+ * An implementation of the portSUPPRESS_TICKS_AND_SLEEP() macro routine to put
+ * MCU into a sleep mode.
+ *
+ * NOTE: See https://freertos.org/low-power-tickless-rtos.html and its
+ * "Implementing portSUPPRESS_TICKS_AND_SLEEP()" part for details.
+ *
+ * The value of portSUPPRESS_TICKS_AND_SLEEP()’s single parameter equals the
+ * total number of tick periods before a task is due to be moved into the
+ * Ready state. The parameter value is therefore the time the microcontroller
+ * can safely remain in a deep sleep state, with the tick interrupt stopped
+ * (suppressed).
+ *
+ * NOTE: If eTaskConfirmSleepModeStatus() returns eNoTasksWaitingTimeout when
+ * it is called from within portSUPPRESS_TICKS_AND_SLEEP() then the
+ * microcontroller can remain in a deep sleep state indefinitely.
+ *
+ * eTaskConfirmSleepModeStatus() will only return eNoTasksWaitingTimeout when
+ * the following conditions are true:
+ *
+ *     - Software timers are not being used, so the scheduler is not due to
+ *       execute a timer callback function at any time in the future.
+ *
+ *     - All the application tasks are either in the Suspended state, or in the
+ *       Blocked state with an infinite timeout (a timeout value of
+ *       portMAX_DELAY), so the scheduler is not due to transition a task out of
+ *       the Blocked state at any fixed time in the future.
+ *
+ * To avoid race conditions the RTOS scheduler is suspended before
+ * portSUPPRESS_TICKS_AND_SLEEP() is called, and resumed when
+ * portSUPPRESS_TICKS_AND_SLEEP() completes.
+ *
+ * This ensures application tasks cannot execute between the microcontroller
+ * exiting its low power state and portSUPPRESS_TICKS_AND_SLEEP() completing
+ * its execution.
+ *
+ * Further, it is necessary for the portSUPPRESS_TICKS_AND_SLEEP() function to
+ * create a small critical section between the tick source being stopped and the
+ * microcontroller entering the sleep state. eTaskConfirmSleepModeStatus()
+ * should be called from this critical section.
  */
-static void prvSetupTimerInterrupt( void )
+void
+vPortApplicationSleep(TickType_t idle_time)
+{
+	eSleepModeStatus slp_status;
+
+	/* Stop the timer that is generating the tick interrupt. */
+	stop_tick_timer();
+
+	/*
+	 * Enter a critical section that will not effect interrupts bringing
+	 * the MCU out of sleep mode.
+	 */
+	portDISABLE_INTERRUPTS();
+
+	/* Ensure it is still OK to enter the sleep mode. */
+	slp_status = eTaskConfirmSleepModeStatus();
+
+	if (slp_status == eAbortSleep) {
+		/*
+		 * A task has been moved out of the Blocked state since this
+		 * macro was executed, or a context siwth is being held pending.
+		 *
+		 * Do not enter a sleep state.  Restart the tick and exit the
+		 * critical section.
+		 */
+		start_tick_timer();
+		portENABLE_INTERRUPTS();
+	} else {
+		if (slp_status == eNoTasksWaitingTimeout) {
+			/*
+			 * It is not necessary to configure an interrupt to
+			 * bring the microcontroller out of its low power state
+			 * at a fixed time in the future.
+			 */
+			sleep(SLEEP_MODE_PWR_DOWN);
+		} else {
+			/*
+			 * Configure an interrupt to bring the microcontroller
+			 * out of its low power state at the time the kernel
+			 * next needs to execute.
+			 *
+			 * The interrupt must be generated from a source that
+			 * remains operational when the microcontroller is
+			 * in a low power state.
+			 */
+			set_wake_timer(idle_time);
+
+			/* Enter the low power state. */
+			sleep(SLEEP_MODE_PWR_DOWN);
+
+			/*
+			 * Correct the kernels tick count to account for the
+			 * time the microcontroller spent in its low power
+			 * state.
+			 *
+			 * NOTE: We don't calculate an actual time spent in the
+			 * sleep mode because it's not necessary at the moment.
+			 * Timer 2 and the Power-save mode might be helpful
+			 * otherwise.
+			 */
+			vTaskStepTick(idle_time);
+		}
+
+		/*
+		 * Exit the critical section - it might be possible to do this
+		 * immediately after the prvSleep() calls.
+		 */
+		portENABLE_INTERRUPTS();
+
+		/* Restart the timer that is generating the tick interrupt. */
+		start_tick_timer();
+	}
+}
+
+/* Setup timer 1 compare match A to generate a tick interrupt. */
+static void
+setup_timer_interrupt(void)
 {
 	uint32_t ulCompareMatch;
 	uint8_t ucHighByte, ucLowByte;
@@ -410,7 +519,120 @@ static void prvSetupTimerInterrupt( void )
 	ucLowByte |= portCOMPARE_MATCH_A_INTERRUPT_ENABLE;
 	TIMSK1 = ucLowByte;
 }
-/*-----------------------------------------------------------*/
+
+/* Enter the sleep mode of the MCU. */
+static void
+sleep(uint8_t mode)
+{
+	set_sleep_mode(mode);
+	sleep_enable();
+	sleep_cpu();
+	sleep_disable();
+}
+
+/* Configure a timer to wake MCU up from the sleep mode. */
+static void
+set_wake_timer(TickType_t idle_time)
+{
+	/*
+	 * Idle time in ticks should be converted to milliseconds beforehand.
+	 * It can be done by writing a "pdTICKS_TO_MS()" macro.
+	 */
+	//const uint32_t idle_ms = pdTICKS_TO_MS(idle_time);
+	const uint32_t idle_ms = idle_time;
+
+	/*
+	 * Enter a critical section that will not effect interrupts while
+	 * changing the WDT prescaler.
+	 */
+	portDISABLE_INTERRUPTS();
+
+	/* Reset the WDT. */
+	wdt_reset();
+
+	if (idle_ms <= 15) {
+		wdt_enable(WDTO_15MS);
+	} else if (idle_ms <= 30) {
+		wdt_enable(WDTO_30MS);
+	} else if (idle_ms <= 60) {
+		wdt_enable(WDTO_60MS);
+	} else if (idle_ms <= 120) {
+		wdt_enable(WDTO_120MS);
+	} else if (idle_ms <= 250) {
+		wdt_enable(WDTO_250MS);
+	} else if (idle_ms <= 500) {
+		wdt_enable(WDTO_500MS);
+	} else if (idle_ms <= 1000) {
+		wdt_enable(WDTO_1S);
+	} else if (idle_ms <= 2000) {
+		wdt_enable(WDTO_2S);
+	} else if (idle_ms <= 4000) {
+		wdt_enable(WDTO_4S);
+	} else {
+		/*
+		 * We can't handle a timeout above 8s because of the WDT
+		 * hardware capabilities. See datasheet for details.
+		 */
+		wdt_enable(WDTO_8S);
+	}
+
+	/*
+	 * Enable Interrupt Mode of the WDT.
+	 *
+	 * Watchdog Timer configuration (WDTON is a fuse bit):
+	 *
+	 * WDTON WDE WDIE Mode                        Action on time-out
+	 * -------------------------------------------------------------
+	 * 1     0   0    Stopped                     None
+	 * 1     0   1    Interrupt Mode              Interrupt
+	 * 1     1   0    System Reset Mode           Reset
+	 * 1     1   1    Interrupt and System Reset  Interrupt, then Reset
+	 * 0     x   x    System Reset                Reset
+	 */
+	CLEAR_BIT(WDTCSR, WDE);
+	SET_BIT(WDTCSR, WDIE);
+
+	portENABLE_INTERRUPTS();
+}
+
+/* Stops the timer which generates the tick interrupt. */
+static void
+stop_tick_timer(void)
+{
+	uint8_t byte = TCCR1B;
+
+	/*
+	 * Enter a critical section that will not effect interrupts while
+	 * switching the tick timer off.
+	 */
+	portDISABLE_INTERRUPTS();
+
+	/* No clock source for Timer 1, stopped mode. */
+	CLEAR_BIT(byte, CS12);
+	CLEAR_BIT(byte, CS11);
+	CLEAR_BIT(byte, CS10);
+	TCCR1B = byte;
+
+	portENABLE_INTERRUPTS();
+}
+
+/* Starts the timer which generates the tick interrupt. */
+static void
+start_tick_timer(void)
+{
+	const uint8_t byte = TCCR1B;
+
+	/*
+	 * Enter a critical section that will not effect interrupts while
+	 * switching the tick timer on.
+	 */
+	portDISABLE_INTERRUPTS();
+
+	/* Return back to the default prescaler. */
+	TCCR1B = (uint8_t)((byte & 0xf8) | portPRESCALE_64);
+
+	portENABLE_INTERRUPTS();
+}
 
 #if configUSE_PREEMPTION == 1
 
@@ -439,3 +661,18 @@ ISR(TIMER1_COMPA_vect, ISR_NAKED)
 	xTaskIncrementTick();
 }
 #endif
+
+/*
+ * A Watchdog Timeout ISR which is supposed to wake the MCU up from the
+ * sleep mode after a selected period of time (usually between 16ms and 8s).
+ */
+ISR(WDT_vect)
+{
+	portDISABLE_INTERRUPTS();
+
+	/* Disable WDT. */
+	wdt_reset();
+	wdt_disable();
+
+	portENABLE_INTERRUPTS();
+}

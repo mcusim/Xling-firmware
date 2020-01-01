@@ -21,6 +21,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <avr/io.h>
+#include <avr/interrupt.h>
 
 /*
  * This task is supposed to monitor the device activity during a selected
@@ -86,4 +87,20 @@ sleepmod_task(void *arg)
 	 * NOTE: This point shouldn't be reached.
 	 */
 	vTaskDelete(NULL);
+}
+
+/*
+ * An interrupt of the Timer 3 and its compare-match channel B is used to
+ * measure a timeout after which one all of the tasks will be "asked" to suspend
+ * their activities in order to switch to the tickless low-power mode.
+ *
+ * See: https://freertos.org/low-power-tickless-rtos.html
+ *
+ * NOTE: It is assumed that Timer 3 and its compare-match channel B have already
+ * been configured.
+ */
+ISR(TIMER3_COMPB_vect)
+{
+	/* Getting ready to ask all of the tasks to suspend their activities. */
+	/* ... */
 }

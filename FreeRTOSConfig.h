@@ -34,6 +34,9 @@
 
 #include <avr/io.h>
 
+/* FreeRTOS headers. */
+#include "portmacro.h"
+
 /*
  * Application specific definitions.
  *
@@ -59,10 +62,20 @@
 #define configIDLE_SHOULD_YIELD			1
 #define configQUEUE_REGISTRY_SIZE		0
 #define configUSE_TASK_NOTIFICATIONS		1
-
-/* Co-routine definitions. */
 #define configUSE_CO_ROUTINES			0
 #define configMAX_CO_ROUTINE_PRIORITIES		(2)
+
+/* Declaration of the port-specific functions. */
+extern void vPortApplicationSleep(TickType_t idle_time);
+
+/*
+ * Utilize a user-defined tickless idle functionality.
+ *
+ * See "portSUPPRESS_TICKS_AND_SLEEP()" macro implementation for details.
+ */
+#define configUSE_TICKLESS_IDLE			(2)
+#define configEXPECTED_IDLE_TIME_BEFORE_SLEEP	(750) /* ticks */
+#define portSUPPRESS_TICKS_AND_SLEEP(idle_time) vPortApplicationSleep(idle_time)
 
 /* Interrupt nesting behaviour configuration. */
 //#define configKERNEL_INTERRUPT_PRIORITY	(14)
