@@ -269,6 +269,16 @@ MSIM_SH1106_Free(MSIM_SH1106_t *dev)
 	}
 }
 
+
+/*
+ * A busy-wait for the connection ready state.
+ */
+void
+MSIM_SH1106_Wait(MSIM_SH1106_t *dev)
+{
+	WAIT_TILL_READY(dev);
+}
+
 /*
  * Resets length of the DCB's buffer.
  */

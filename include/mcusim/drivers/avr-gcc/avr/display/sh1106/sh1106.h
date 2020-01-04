@@ -200,6 +200,7 @@ int	MSIM_SH1106__drvStop(void);
 /* DCB utility functions */
 MSIM_SH1106_t *	MSIM_SH1106_Init(const MSIM_SH1106Conf_t *);
 void		MSIM_SH1106_Free(MSIM_SH1106_t *);
+void		MSIM_SH1106_Wait(MSIM_SH1106_t *);
 
 /* DCB's buffer utility functions */
 int	MSIM_SH1106_bufClear(MSIM_SH1106_t *);
