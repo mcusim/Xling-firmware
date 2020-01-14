@@ -59,7 +59,7 @@ project(Xling-firmware C)
 # Xling-firmware version
 set(XLING_MAJOR_VERSION 0)
 set(XLING_MINOR_VERSION 4)
-set(XLING_PATCH_VERSION 9)
+set(XLING_PATCH_VERSION 10)
 
 # Target file name (without extension) and version
 set(TARGET_OUTPUT_BASENAME "Xling-firmware-${XLING_MAJOR_VERSION}.${XLING_MINOR_VERSION}.${XLING_PATCH_VERSION}")
@@ -192,22 +192,22 @@ include_directories("include/")
 # Set sources here
 # ------------------------------------------------------------------------------
 set(XLING_SRC
-	src/fuse.c
-	src/main.c
-	src/display_task.c
-	src/battery_monitor_task.c
-	src/sleep_mode_task.c
-	src/mcusim/drivers/avr-gcc/avr/display/sh1106/sh1106.c
-	src/mcusim/drivers/avr-gcc/avr/display/sh1106/sh1106_graphics.c
-	src/mcusim/drivers/avr-gcc/avr/display/sh1106/sh1106_spi4.c
-	src/mcusim/drivers/avr-gcc/avr/display/sh1106/sh1106_twi.c
-	src/mcusim/drivers/avr-gcc/avr/display/sh1106/sh1106_twibb.c
 	src/rtos/tasks.c
 	src/rtos/queue.c
 	src/rtos/list.c
 	src/rtos/croutine.c
 	src/rtos/heap_1.c
 	src/rtos/port.c
+	src/mcusim/drivers/avr-gcc/avr/display/sh1106/sh1106.c
+	src/mcusim/drivers/avr-gcc/avr/display/sh1106/sh1106_graphics.c
+	src/mcusim/drivers/avr-gcc/avr/display/sh1106/sh1106_spi4.c
+	src/mcusim/drivers/avr-gcc/avr/display/sh1106/sh1106_twi.c
+	src/mcusim/drivers/avr-gcc/avr/display/sh1106/sh1106_twibb.c
+	src/fuse.c
+	src/main.c
+	src/display_task.c
+	src/battery_monitor_task.c
+	src/sleep_mode_task.c
 )
 
 add_executable(${TARGET_OUTPUT_FILE} ${XLING_SRC})

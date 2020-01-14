@@ -33,14 +33,18 @@
 #include "task.h"
 #include "queue.h"
 
+typedef struct XG_TaskInfo_t {
+	TaskHandle_t task_hdl;
+	QueueHandle_t queue_hdl;
+} XG_TaskInfo_t;
+
 /*
  * A "task arguments" type which is passed to all of the Xling tasks.
  */
 typedef struct XG_TaskArgs_t {
-	QueueHandle_t	display_q;	/* Display task queue. */
-	QueueHandle_t	batmon_q;	/* Battery monitor queue. */
-	QueueHandle_t	slpmod_q;	/* Sleep mode task queue. */
-	void *		task_arg;	/* Task-specific argument. */
+	XG_TaskInfo_t	display_ti;	/* Display task info. */
+	XG_TaskInfo_t	batmon_ti;	/* Battery monitor task info. */
+	XG_TaskInfo_t	slpmod_ti;	/* Sleep mode task info. */
 } XG_TaskArgs_t;
 
 /*
@@ -61,9 +65,6 @@ typedef enum XG_MsgType_t {
 	 * to let the Idle task to be the only one which is able to run.
 	 */
 	XG_MSG_TASKSUSP_REQ,		/* A request to suspend the task. */
-	XG_MSG_TASKSUSP_RESOK,		/* Task suspended correctly. */
-	XG_MSG_TASKSUSP_RESNOTNOW,	/* Try to suspend the task again. */
-	XG_MSG_TASKSUSP_RESFAIL,	/* Cannot suspend the task. */
 } XG_MsgType_t;
 
 /*

@@ -35,13 +35,16 @@
  * used to resume the display updating task.
  */
 
+/* FreeRTOS headers. */
 #include "FreeRTOS.h"
 #include "task.h"
 #include "queue.h"
 
+/* SH1106 driver headers. */
 #include "mcusim/drivers/avr-gcc/avr/display/sh1106/sh1106.h"
 #include "mcusim/drivers/avr-gcc/avr/display/sh1106/sh1106_graphics.h"
 
+/* Xling headers. */
 #include "xling/tasks.h"
 #include "xling/graphics/xling.h"
 #include "xling/graphics/luci.h"
@@ -84,8 +87,10 @@ static const MSIM_SH1106Conf_t _display_conf = {
 static volatile TaskHandle_t _task_handle;
 
 /* Local functions declarations. */
-static void init_timer3(void);
-static void display_task(void *) __attribute__((noreturn));
+static void	init_timer3(void);
+static void	stop_timer3(void);
+static void	start_timer3(void);
+static void	display_task(void *) __attribute__((noreturn));
 
 int
 XG_InitDisplayTask(XG_TaskArgs_t *arg, UBaseType_t prior,
@@ -174,23 +179,58 @@ display_task(void *arg)
 		/* Remember a moment in time. */
 		delay = xTaskGetTickCount();
 
-		/* Attempt to receive a message from the queue. */
-		status = xQueueReceive(args->display_q, &msg, 0);
+		/* Receive all of the messages from the queue. */
+		while (1) {
+			/* Attempt to receive the next message. */
+			status = xQueueReceive(args->display_ti.queue_hdl, &msg, 0);
 
-		if (status == pdPASS) {
-			/*
-			 * A message has successfully been received from
-			 * the queue.
-			 */
-			switch (msg.type) {
-			case XG_MSG_BATLVL:
-				bat_lvl = msg.value;
-				break;
-			case XG_MSG_BATSTATPIN:
-				bat_stat = msg.value;
-				break;
-			default:
-				/* Ignore other messages silently. */
+			/* Message has been received. */
+			if (status == pdPASS) {
+				switch (msg.type) {
+				case XG_MSG_BATLVL:
+					bat_lvl = msg.value;
+					break;
+				case XG_MSG_BATSTATPIN:
+					bat_stat = msg.value;
+					break;
+				case XG_MSG_TASKSUSP_REQ:
+					/*
+					 * Do not resume the task by the timer
+					 * before going to sleep.
+					 */
+					stop_timer3();
+
+					/* Switch the display off. */
+					MSIM_SH1106_bufClear(display);
+					MSIM_SH1106_DisplayOff(display);
+					MSIM_SH1106_bufSend(display);
+					MSIM_SH1106_Wait(display);
+
+					/* Let the task to suspend itself. */
+					vTaskSuspend(NULL);
+
+					/* Switch the display back on. */
+					MSIM_SH1106_bufClear(display);
+					MSIM_SH1106_DisplayOn(display);
+					MSIM_SH1106_bufSend(display);
+					MSIM_SH1106_Wait(display);
+
+					/*
+					 * Let's resume the task by the timer
+					 * again.
+					 */
+					start_timer3();
+
+					break;
+				default:
+					/* Ignore other messages silently. */
+					break;
+				}
+			} else {
+				/*
+				 * Queue is empty. There is no need to receive
+				 * new messages anymore in this frame cycle.
+				 */
 				break;
 			}
 		}
@@ -265,7 +305,7 @@ display_task(void *arg)
 		delay = xTaskGetTickCount() - delay;
 
 		/* Draw the delay. */
-		snprintf(&textbuf[0], sizeof textbuf, "%u ms", delay);
+		snprintf(&textbuf[0], sizeof textbuf, "%lu ms", delay);
 
 		MSIM_SH1106_bufClear(display);
 		MSIM_SH1106_SetPage(display, change_frame);
@@ -304,7 +344,7 @@ init_timer3(void)
 	 * Channel A. It can be achieved by dividing the MCU clock frequency
 	 * by 8 to get 1.5 MHz, and by 62,500 to get the desired one:
 	 *
-	 *     12,000,000 / 8 = 1,500,000 MHz
+	 *     12,000,000 / 8 = 1,500,000 Hz
 	 *     1,500,000 / 62,500 = 24 Hz
 	 */
 
@@ -314,7 +354,9 @@ init_timer3(void)
 	CLEAR_BIT(TCCR3A, WGM31);
 	CLEAR_BIT(TCCR3A, WGM30);
 
-	/* Divide the timer frequency by 62,500 to get 24 Hz. */
+	/*
+	 * Divide the timer frequency by 62,500 to get 24 Hz at channel A.
+	 */
 	TCNT3 = 0x00;
 	OCR3A = 62499;
 
@@ -325,6 +367,38 @@ init_timer3(void)
 	CLEAR_BIT(TCCR3B, CS32);
 	SET_BIT(TCCR3B, CS31);
 	CLEAR_BIT(TCCR3B, CS30);
+}
+
+static void
+stop_timer3(void)
+{
+	uint8_t byte = TCCR3B;
+
+	taskENTER_CRITICAL();
+
+	/* Stop the timer: CS32:0 = 0. */
+	CLEAR_BIT(byte, CS32);
+	CLEAR_BIT(byte, CS31);
+	CLEAR_BIT(byte, CS30);
+	TCCR3B = byte;
+
+	taskEXIT_CRITICAL();
+}
+
+static void
+start_timer3(void)
+{
+	uint8_t byte = TCCR3B;
+
+	taskENTER_CRITICAL();
+
+	/* Start timer, prescaler to 8: CS32:0 = 2. */
+	CLEAR_BIT(byte, CS32);
+	SET_BIT(byte, CS31);
+	CLEAR_BIT(byte, CS30);
+	TCCR3B = byte;
+
+	taskEXIT_CRITICAL();
 }
 
 /*

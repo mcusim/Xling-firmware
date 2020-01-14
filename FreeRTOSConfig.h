@@ -66,7 +66,7 @@
 #define configMAX_CO_ROUTINE_PRIORITIES		(2)
 
 /* Declaration of the port-specific functions. */
-extern void vPortApplicationSleep(TickType_t idle_time);
+extern void vPortSuppressTicksAndSleep(TickType_t idle_time);
 
 /*
  * Utilize a user-defined tickless idle functionality.
@@ -74,8 +74,8 @@ extern void vPortApplicationSleep(TickType_t idle_time);
  * See "portSUPPRESS_TICKS_AND_SLEEP()" macro implementation for details.
  */
 #define configUSE_TICKLESS_IDLE			(2)
-#define configEXPECTED_IDLE_TIME_BEFORE_SLEEP	(750) /* ticks */
-#define portSUPPRESS_TICKS_AND_SLEEP(idle_time) vPortApplicationSleep(idle_time)
+#define configEXPECTED_IDLE_TIME_BEFORE_SLEEP	(1000) /* ticks */
+#define portSUPPRESS_TICKS_AND_SLEEP(it)	vPortSuppressTicksAndSleep(it)
 
 /* Interrupt nesting behaviour configuration. */
 //#define configKERNEL_INTERRUPT_PRIORITY	(14)

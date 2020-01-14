@@ -39,48 +39,28 @@
  * used to generate a tick interrupt for the FreeRTOS scheduler.
  */
 
+/* FreeRTOS headers. */
 #include "FreeRTOS.h"
 #include "task.h"
 #include "queue.h"
 
+/* SH1106 driver headers. */
 #include "mcusim/drivers/avr-gcc/avr/display/sh1106/sh1106.h"
 #include "mcusim/drivers/avr-gcc/avr/display/sh1106/sh1106_graphics.h"
 
+/* Xling headers. */
 #include "xling/tasks.h"
-
-/* A task initialization function (helper data type only). */
-typedef int (*task_initfunc_t)(XG_TaskArgs_t *, UBaseType_t, TaskHandle_t *);
-
-/* A task initialization block (helper data type only). */
-typedef struct task_initblk_t {
-	task_initfunc_t initf;
-	XG_TaskArgs_t *arg;
-	UBaseType_t priority;
-} task_initblk_t;
 
 /* Local macros. */
 #define SET_BIT(byte, bit)	((byte) |= (1U << (bit)))
 #define CLEAR_BIT(byte, bit)	((byte) &= (uint8_t) ~(1U << (bit)))
 #define IS_SET(byte, bit)	(((byte) & (1U << (bit))) >> (bit))
 
-/* Buttons pins */
-#define BTN1			PD3
-#define BTN2			PD2
-#define BTN3			PB4
-
 /* Local variables. */
 static XG_TaskArgs_t _display_args;
 static XG_TaskArgs_t _batmon_args;
 static XG_TaskArgs_t _slpmod_args;
-
-static const task_initblk_t _init_blocks[] = {
-	{ .initf=XG_InitDisplayTask, .arg=&_display_args, .priority=3 },
-	{ .initf=XG_InitBatteryMonitorTask, .arg=&_batmon_args, .priority=1 },
-	{ .initf=XG_InitSleepModeTask, .arg=&_slpmod_args, .priority=1 },
-};
-static const size_t _tib_num = sizeof(_init_blocks) / sizeof(_init_blocks[0]);
 static uint8_t _mcusr_mirror __attribute__ ((section (".noinit")));
-/* END Local variables. */
 
 /* Local functions declarations. */
 static void disable_wdt(void)
@@ -91,7 +71,7 @@ static void disable_wdt(void)
 int
 main(void)
 {
-	const task_initblk_t *tib;
+	TaskHandle_t *th;
 	int rc = 0;
 
 	/* Configure PORTC pins as output. */
@@ -100,25 +80,49 @@ main(void)
 	DDRA = 0x00;
 	PORTA = 0x00;
 
-	/* Initialize tasks arguments. */
-	_display_args.display_q = xQueueCreate(3, sizeof(XG_Msg_t)),
-	_display_args.batmon_q = xQueueCreate(3, sizeof(XG_Msg_t)),
-	_display_args.slpmod_q = xQueueCreate(3, sizeof(XG_Msg_t)),
+	/* Initialize the tasks arguments. */
+	_display_args.display_ti.queue_hdl = xQueueCreate(3, sizeof(XG_Msg_t)),
+	_display_args.batmon_ti.queue_hdl = xQueueCreate(3, sizeof(XG_Msg_t)),
+	_display_args.slpmod_ti.queue_hdl = xQueueCreate(3, sizeof(XG_Msg_t)),
 	_batmon_args = _display_args;
 	_slpmod_args = _display_args;
 
 	/* Create and initialize Xling tasks. */
-	for (size_t i = 0; i < _tib_num; i++) {
-		tib = &_init_blocks[i];
-
-		/* Initialize a task. */
-		rc = tib->initf(tib->arg, tib->priority, NULL);
-
+	do {
+		th = &_display_args.display_ti.task_hdl;
+		rc = XG_InitDisplayTask(&_display_args, 3, th);
 		if (rc != 0) {
-			/* Task couldn't be created/initialized successfully. */
+			/* Task couldn't be initialized successfully. */
 			break;
+		} else {
+			/* Copy the task handler. */
+			_batmon_args.display_ti.task_hdl = *th;
+			_slpmod_args.display_ti.task_hdl = *th;
 		}
-	}
+
+		th = &_batmon_args.batmon_ti.task_hdl;
+		rc = XG_InitBatteryMonitorTask(&_batmon_args, 1, th);
+		if (rc != 0) {
+			/* Task couldn't be initialized successfully. */
+			break;
+		} else {
+			/* Copy the task handler. */
+			_display_args.batmon_ti.task_hdl = *th;
+			_slpmod_args.batmon_ti.task_hdl = *th;
+		}
+
+		th = &_slpmod_args.slpmod_ti.task_hdl;
+		rc = XG_InitSleepModeTask(&_slpmod_args, 1, th);
+		if (rc != 0) {
+			/* Task couldn't be initialized successfully. */
+			break;
+		} else {
+			/* Copy the task handler. */
+			_display_args.slpmod_ti.task_hdl = *th;
+			_batmon_args.slpmod_ti.task_hdl = *th;
+		}
+	} while (0);
+	/* END Create and initialize Xling tasks. */
 
 	/* Start the FreeRTOS scheduler. */
 	if (rc == 0) {

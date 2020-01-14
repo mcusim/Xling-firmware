@@ -403,7 +403,7 @@ void vPortYieldFromTick( void )
  * should be called from this critical section.
  */
 void
-vPortApplicationSleep(TickType_t idle_time)
+vPortSuppressTicksAndSleep(TickType_t idle_time)
 {
 	eSleepModeStatus slp_status;
 
@@ -436,6 +436,7 @@ vPortApplicationSleep(TickType_t idle_time)
 			 * bring the microcontroller out of its low power state
 			 * at a fixed time in the future.
 			 */
+			portENABLE_INTERRUPTS();
 			sleep(SLEEP_MODE_PWR_DOWN);
 		} else {
 			/*
@@ -450,6 +451,7 @@ vPortApplicationSleep(TickType_t idle_time)
 			set_wake_timer(idle_time);
 
 			/* Enter the low power state. */
+			portENABLE_INTERRUPTS();
 			sleep(SLEEP_MODE_PWR_DOWN);
 
 			/*
@@ -457,19 +459,13 @@ vPortApplicationSleep(TickType_t idle_time)
 			 * time the microcontroller spent in its low power
 			 * state.
 			 *
-			 * NOTE: We don't calculate an actual time spent in the
+			 * NOTE: We don't calculate the actual time spent in the
 			 * sleep mode because it's not necessary at the moment.
-			 * Timer 2 and the Power-save mode might be helpful
+			 * Timer 2 and the "Power-save" mode might be helpful
 			 * otherwise.
 			 */
 			vTaskStepTick(idle_time);
 		}
-
-		/*
-		 * Exit the critical section - it might be possible to do this
-		 * immediately after the prvSleep() calls.
-		 */
-		portENABLE_INTERRUPTS();
 
 		/* Restart the timer that is generating the tick interrupt. */
 		start_tick_timer();

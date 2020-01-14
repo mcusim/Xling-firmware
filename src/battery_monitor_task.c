@@ -98,10 +98,41 @@ batmon_task(void *arg)
 
 	/* Task loop */
 	while (1) {
+		/* Receive all of the messages from the queue. */
+		while (1) {
+			/*
+			 * Attempt to receive a message from the queue.
+			 *
+			 * NOTE: This task won't be blocked because its main
+			 * purpose is to control the battery voltage and let
+			 * the other tasks know about the actual values.
+			 */
+			status = xQueueReceive(args->batmon_ti.queue_hdl, &msg, 0);
+
+			/* Message has been received. */
+			if (status == pdPASS) {
+				switch (msg.type) {
+				case XG_MSG_TASKSUSP_REQ:
+					/* Let the task to suspend itself. */
+					vTaskSuspend(NULL);
+					break;
+				default:
+					/* Ignore other messages silently. */
+					break;
+				}
+			} else {
+				/*
+				 * Queue is empty. There is no need to receive
+				 * new messages anymore in this frame cycle.
+				 */
+				break;
+			}
+		}
+
 		/* Send the battery level message. */
 		msg.type = XG_MSG_BATLVL;
 		msg.value = _bat_lvl;
-		status = xQueueSendToBack(args->display_q, &msg, portMAX_DELAY);
+		status = xQueueSendToBack(args->display_ti.queue_hdl, &msg, portMAX_DELAY);
 
 		if (status != pdPASS) {
 			/*
@@ -115,7 +146,7 @@ batmon_task(void *arg)
 		/* Send the battery status pin message. */
 		msg.type = XG_MSG_BATSTATPIN;
 		msg.value = _bat_stat;
-		status = xQueueSendToBack(args->display_q, &msg, portMAX_DELAY);
+		status = xQueueSendToBack(args->display_ti.queue_hdl, &msg, portMAX_DELAY);
 
 		if (status != pdPASS) {
 			/*
