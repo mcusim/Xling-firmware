@@ -59,7 +59,7 @@ project(Xling-firmware C)
 # Xling-firmware version
 set(XLING_MAJOR_VERSION 0)
 set(XLING_MINOR_VERSION 4)
-set(XLING_PATCH_VERSION 10)
+set(XLING_PATCH_VERSION 11)
 
 # Target file name (without extension) and version
 set(TARGET_OUTPUT_BASENAME "Xling-firmware-${XLING_MAJOR_VERSION}.${XLING_MINOR_VERSION}.${XLING_PATCH_VERSION}")
@@ -219,7 +219,7 @@ add_custom_target("upload")
 # ------------------------------------------------------------------------------
 add_custom_command(
 	TARGET ${TARGET_OUTPUT_FILE} POST_BUILD
-	COMMAND ${AVR_SIZE_TOOL} ${TARGET_OUTPUT_DIR}/${TARGET_OUTPUT_FILE})
+	COMMAND ${AVR_SIZE_TOOL} --format=avr --mcu=${AVR_MCU} ${TARGET_OUTPUT_DIR}/${TARGET_OUTPUT_FILE})
 add_custom_command(
 	TARGET ${TARGET_OUTPUT_FILE} POST_BUILD
 	COMMAND ${AVR_OBJDUMP} -h -S ${TARGET_OUTPUT_FILE} > ${TARGET_OUTPUT_DIR}/${TARGET_OUTPUT_BASENAME}.lss)

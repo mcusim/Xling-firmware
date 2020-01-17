@@ -146,7 +146,8 @@ display_task(void *arg)
 	const uint8_t *ptr;
 	MSIM_SH1106_t * const display = MSIM_SH1106_Init(&_display_conf);
 	uint8_t frame_id = 1, change_frame = 1, col = 0;
-	uint16_t bat_lvl = 0, bat_stat = 0;
+	uint16_t bat_lvl = UINT16_MAX;
+	uint16_t bat_stat = 0;
 	char textbuf[32];
 	TickType_t delay;
 	BaseType_t status;
@@ -188,7 +189,9 @@ display_task(void *arg)
 			if (status == pdPASS) {
 				switch (msg.type) {
 				case XG_MSG_BATLVL:
-					bat_lvl = msg.value;
+					if (msg.value < bat_lvl) {
+						bat_lvl = msg.value;
+					}
 					break;
 				case XG_MSG_BATSTATPIN:
 					bat_stat = msg.value;
@@ -298,30 +301,43 @@ display_task(void *arg)
 			change_frame = 1;
 		}
 
-		/*
-		 * Calculate a delay to receive a message from the queue and
-		 * draw an animation frame.
-		 */
-		delay = xTaskGetTickCount() - delay;
+		if (change_frame == 0) {
+			/*
+			 * Calculate a delay to receive a message from the queue and
+			 * draw an animation frame.
+			 */
+			delay = xTaskGetTickCount() - delay;
 
-		/* Draw the delay. */
-		snprintf(&textbuf[0], sizeof textbuf, "%lu ms", delay);
+			/* Draw the delay. */
+			snprintf(&textbuf[0], sizeof textbuf, "frame: %lu ms",
+			         delay);
 
-		MSIM_SH1106_bufClear(display);
-		MSIM_SH1106_SetPage(display, change_frame);
-		MSIM_SH1106_SetColumn(display, 2);
-		MSIM_SH1106_bufSend(display);
-		MSIM_SH1106_Print(display, &textbuf[0]);
+			MSIM_SH1106_bufClear(display);
+			MSIM_SH1106_SetPage(display, 0);
+			MSIM_SH1106_SetColumn(display, 2);
+			MSIM_SH1106_bufSend(display);
+			MSIM_SH1106_Print(display, &textbuf[0]);
 
-		/* Draw the battery level. */
-		snprintf(&textbuf[0], sizeof textbuf, "%d, %d",
-		         bat_lvl, bat_stat);
+			/* Draw the battery level. */
+			snprintf(&textbuf[0], sizeof textbuf, "battery: %d%%",
+			         bat_lvl);
 
-		MSIM_SH1106_bufClear(display);
-		MSIM_SH1106_SetPage(display, 2);
-		MSIM_SH1106_SetColumn(display, 2);
-		MSIM_SH1106_bufSend(display);
-		MSIM_SH1106_Print(display, &textbuf[0]);
+			MSIM_SH1106_bufClear(display);
+			MSIM_SH1106_SetPage(display, 1);
+			MSIM_SH1106_SetColumn(display, 2);
+			MSIM_SH1106_bufSend(display);
+			MSIM_SH1106_Print(display, &textbuf[0]);
+
+			/* Draw the battery level. */
+			snprintf(&textbuf[0], sizeof textbuf, ((bat_stat == 1) ?
+			         "charged: yes" : "charged: no"));
+
+			MSIM_SH1106_bufClear(display);
+			MSIM_SH1106_SetPage(display, 2);
+			MSIM_SH1106_SetColumn(display, 2);
+			MSIM_SH1106_bufSend(display);
+			MSIM_SH1106_Print(display, &textbuf[0]);
+		}
 
 		/* Let the task to suspend itself until the next wake. */
 		vTaskSuspend(NULL);

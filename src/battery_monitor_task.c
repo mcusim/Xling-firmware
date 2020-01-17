@@ -47,6 +47,9 @@
 #define CLEAR_BIT(byte, bit)	((byte) &= (uint8_t) ~(1U << (bit)))
 #define TNAME			"Battery Monitor Task"
 #define STSZ			(configMINIMAL_STACK_SIZE)
+#define BAT_MAX			(700) /* Raw ADC value measured manually. */
+#define BAT_MIN			(545) /* Raw ADC value measured manually. */
+#define BAT_PERCENT(v)		((v)-BAT_MIN)/((BAT_MAX-BAT_MIN)/100.0)
 
 /* Local variables. */
 static volatile uint16_t _bat_lvl;	/* Raw battery voltage from ADC. */
@@ -107,7 +110,8 @@ batmon_task(void *arg)
 			 * purpose is to control the battery voltage and let
 			 * the other tasks know about the actual values.
 			 */
-			status = xQueueReceive(args->batmon_ti.queue_hdl, &msg, 0);
+			status = xQueueReceive(args->batmon_ti.queue_hdl,
+			                       &msg, 0);
 
 			/* Message has been received. */
 			if (status == pdPASS) {
@@ -131,8 +135,9 @@ batmon_task(void *arg)
 
 		/* Send the battery level message. */
 		msg.type = XG_MSG_BATLVL;
-		msg.value = _bat_lvl;
-		status = xQueueSendToBack(args->display_ti.queue_hdl, &msg, portMAX_DELAY);
+		msg.value = BAT_PERCENT(_bat_lvl);
+		status = xQueueSendToBack(args->display_ti.queue_hdl, &msg,
+		                          portMAX_DELAY);
 
 		if (status != pdPASS) {
 			/*
@@ -146,7 +151,8 @@ batmon_task(void *arg)
 		/* Send the battery status pin message. */
 		msg.type = XG_MSG_BATSTATPIN;
 		msg.value = _bat_stat;
-		status = xQueueSendToBack(args->display_ti.queue_hdl, &msg, portMAX_DELAY);
+		status = xQueueSendToBack(args->display_ti.queue_hdl, &msg,
+		                          portMAX_DELAY);
 
 		if (status != pdPASS) {
 			/*
