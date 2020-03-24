@@ -76,9 +76,18 @@ main(void)
 
 	/* Configure PORTC pins as output. */
 	DDRC = 0xFF;
+
 	/* Configure PORTA pins as input. */
 	DDRA = 0x00;
 	PORTA = 0x00;
+
+	/*
+	 * Pull PB4 (SS, Slave Select bit) high to ensure Master SPI operation.
+	 *
+	 * PB4 -> as input pin, write logic one.
+	 */
+	CLEAR_BIT(DDRB, PB4);
+	SET_BIT(PORTB, PB4);
 
 	/* Initialize the tasks arguments. */
 	_display_args.display_ti.queue_hdl = xQueueCreate(3, sizeof(XG_Msg_t)),
@@ -90,7 +99,7 @@ main(void)
 	/* Create and initialize Xling tasks. */
 	do {
 		th = &_display_args.display_ti.task_hdl;
-		rc = XG_InitDisplayTask(&_display_args, 3, th);
+		rc = XG_InitDisplayTask(&_display_args, 1, th);
 		if (rc != 0) {
 			/* Task couldn't be initialized successfully. */
 			break;
@@ -101,7 +110,7 @@ main(void)
 		}
 
 		th = &_batmon_args.batmon_ti.task_hdl;
-		rc = XG_InitBatteryMonitorTask(&_batmon_args, 1, th);
+		rc = XG_InitBatteryMonitorTask(&_batmon_args, 3, th);
 		if (rc != 0) {
 			/* Task couldn't be initialized successfully. */
 			break;
@@ -112,7 +121,7 @@ main(void)
 		}
 
 		th = &_slpmod_args.slpmod_ti.task_hdl;
-		rc = XG_InitSleepModeTask(&_slpmod_args, 1, th);
+		rc = XG_InitSleepModeTask(&_slpmod_args, 3, th);
 		if (rc != 0) {
 			/* Task couldn't be initialized successfully. */
 			break;

@@ -20,7 +20,9 @@
  */
 #include <stdint.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <limits.h>
+#include <time.h>
 #include <avr/io.h>
 #include <avr/interrupt.h>
 #include <avr/pgmspace.h>
@@ -48,10 +50,6 @@
 #include "xling/tasks.h"
 #include "xling/graphics/xling.h"
 #include "xling/graphics/luci.h"
-#include "xling/graphics/luci_walking_01.h"
-#include "xling/graphics/luci_walking_02.h"
-#include "xling/graphics/luci_walking_03.h"
-#include "xling/graphics/luci_walking_04.h"
 
 /* Local macros. */
 #define SET_BIT(byte, bit)	((byte) |= (1U << (bit)))
@@ -64,6 +62,8 @@
 #define OLED_MOSI		PB5		/* OLED SPI pin. */
 #define OLED_MISO		PB6		/* OLED SPI pin. */
 #define OLED_SCK		PB7		/* OLED SPI pin. */
+#define BLINK_DELAY		49
+#define LOOK_AT_DELAY		19
 
 /* Local variables. */
 static const MSIM_SH1106DrvConf_t _driver_conf = {
@@ -145,13 +145,21 @@ display_task(void *arg)
 	const XG_TaskArgs_t * const args = (XG_TaskArgs_t *) arg;
 	const uint8_t *ptr;
 	MSIM_SH1106_t * const display = MSIM_SH1106_Init(&_display_conf);
-	uint8_t frame_id = 1, change_frame = 1, col = 0;
+	uint8_t frame_id = 1;
+	uint8_t change_frame = 1;
+	uint8_t col = 0;
+	uint8_t skip_bat_lvl = 0;
 	uint16_t bat_lvl = UINT16_MAX;
-	uint16_t bat_stat = 0;
+	uint16_t bat_stat = 5;
+	uint16_t blink_delay = BLINK_DELAY;
+	uint16_t look_at_delay = LOOK_AT_DELAY;
 	char textbuf[32];
 	TickType_t delay;
 	BaseType_t status;
 	XG_Msg_t msg;
+
+	/* Use current time as seed for random generator. */
+	srand((unsigned int) time(NULL));
 
 	/* Setup an OLED display. */
 	MSIM_SH1106_DisplayOff(display);
@@ -189,9 +197,15 @@ display_task(void *arg)
 			if (status == pdPASS) {
 				switch (msg.type) {
 				case XG_MSG_BATLVL:
-					if (msg.value < bat_lvl) {
+					/* Skip several values initially. */
+					if (skip_bat_lvl > 0) {
+						skip_bat_lvl--;
+					} else if (msg.value > 100) {
+						bat_lvl = 100;
+					} else {
 						bat_lvl = msg.value;
 					}
+
 					break;
 				case XG_MSG_BATSTATPIN:
 					bat_stat = msg.value;
@@ -211,6 +225,12 @@ display_task(void *arg)
 
 					/* Let the task to suspend itself. */
 					vTaskSuspend(NULL);
+
+					/*
+					 * Skip the first battery level messages
+					 * after awake.
+					 */
+					skip_bat_lvl = 5;
 
 					/* Switch the display back on. */
 					MSIM_SH1106_bufClear(display);
@@ -245,46 +265,68 @@ display_task(void *arg)
 		/* Choose an animation frame. */
 		if (change_frame == 1) {
 			/* Clean a part of the display. */
-			for (uint32_t i = 0; i < 8; i++) {
-				MSIM_SH1106_bufClear(display);
-				MSIM_SH1106_SetPage(display, (uint8_t) i);
-				MSIM_SH1106_SetColumn(display, col);
-				MSIM_SH1106_bufSend(display);
-
-				MSIM_SH1106_bufClear(display);
-				for (uint32_t k = 0; k < 5; k++) {
-					MSIM_SH1106_bufAppend(display, 0);
-				}
-				MSIM_SH1106_bufSend(display);
-			}
+//			for (uint32_t i = 0; i < 8; i++) {
+//				MSIM_SH1106_bufClear(display);
+//				MSIM_SH1106_SetPage(display, (uint8_t) i);
+//				MSIM_SH1106_SetColumn(display, col);
+//				MSIM_SH1106_bufSend(display);
+//
+//				MSIM_SH1106_bufClear(display);
+//				for (uint32_t k = 0; k < 5; k++) {
+//					MSIM_SH1106_bufAppend(display, 0);
+//				}
+//				MSIM_SH1106_bufSend(display);
+//			}
 
 			/* Update a sprite position. */
-			col = (uint8_t)((col >= 130) ? 5 : (col + 5));
+//			col = (uint8_t)((col >= 130) ? 5 : (col + 5));
+			col = 75;
 
 			switch (frame_id) {
+			case 0:
+				ptr = exy_inbottle_01;
+				if (look_at_delay == 0) {
+					frame_id = 1;
+					look_at_delay = LOOK_AT_DELAY;
+				} else {
+					look_at_delay--;
+				}
+				break;
 			case 1:
-				ptr = luci_walking_01;
-				frame_id++;
+				ptr = exy_inbottle_02;
+				if (blink_delay == 0) {
+					frame_id++;
+				} else {
+					blink_delay--;
+					if ((1 + (rand()/((RAND_MAX + 1u)/20))) > 19) {
+						frame_id = 0;
+					}
+				}
 				break;
 			case 2:
-				ptr = luci_walking_02;
+				ptr = exy_inbottle_03;
 				frame_id++;
 				break;
 			case 3:
-				ptr = luci_walking_03;
+				ptr = exy_inbottle_04;
 				frame_id++;
 				break;
 			case 4:
-				ptr = luci_walking_04;
+				ptr = exy_inbottle_05;
+				frame_id++;
+				break;
+			case 5:
+				ptr = exy_inbottle_06;
 				frame_id++;
 				break;
 			default:
-				ptr = luci_walking_01;
-				frame_id = 2;
+				ptr = exy_inbottle_02;
+				frame_id = 1;
+				blink_delay = BLINK_DELAY;
 				break;
 			}
 
-			/* Draw the frame. */
+			/* Draw the next frame. */
 			for (uint32_t i = 0; i < 8; i++) {
 				MSIM_SH1106_bufClear(display);
 				MSIM_SH1106_SetPage(display, (uint8_t) i);
@@ -293,7 +335,7 @@ display_task(void *arg)
 
 				MSIM_SH1106_bufClear(display);
 				MSIM_SH1106_bufAppendLast_PF(
-				        display, &ptr[i * 59], 59);
+				        display, &ptr[i * 37], 37);
 				MSIM_SH1106_bufSend(display);
 			}
 			change_frame = 0;
@@ -309,7 +351,7 @@ display_task(void *arg)
 			delay = xTaskGetTickCount() - delay;
 
 			/* Draw the delay. */
-			snprintf(&textbuf[0], sizeof textbuf, "frame: %lu ms",
+			snprintf(&textbuf[0], sizeof textbuf, "frame: %4lu ms",
 			         delay);
 
 			MSIM_SH1106_bufClear(display);
@@ -319,7 +361,7 @@ display_task(void *arg)
 			MSIM_SH1106_Print(display, &textbuf[0]);
 
 			/* Draw the battery level. */
-			snprintf(&textbuf[0], sizeof textbuf, "battery: %d%%",
+			snprintf(&textbuf[0], sizeof textbuf, "battery: %3d%%",
 			         bat_lvl);
 
 			MSIM_SH1106_bufClear(display);
@@ -330,7 +372,7 @@ display_task(void *arg)
 
 			/* Draw the battery level. */
 			snprintf(&textbuf[0], sizeof textbuf, ((bat_stat == 1) ?
-			         "charged: yes" : "charged: no"));
+			         "charged:  yes" : "charged:   no"));
 
 			MSIM_SH1106_bufClear(display);
 			MSIM_SH1106_SetPage(display, 2);

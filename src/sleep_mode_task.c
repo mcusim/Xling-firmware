@@ -50,7 +50,7 @@
 #define SET_BIT(byte, bit)	((byte) |= (1U << (bit)))
 #define CLEAR_BIT(byte, bit)	((byte) &= (uint8_t) ~(1U << (bit)))
 #define STSZ			(configMINIMAL_STACK_SIZE)
-#define TIMEOUT_MS		(14000)
+#define TIMEOUT_MS		(29000)
 #define TIMEOUT_TICKS		((uint16_t)(TIMEOUT_MS / 2.666667))
 
 /* Local data types. */
@@ -62,6 +62,7 @@ typedef enum wake_source_e {
 /* Local variables. */
 static volatile TaskHandle_t _task_handle;
 static volatile uint16_t _tick_val = 0;		/* # of ticks passed. */
+static volatile uint8_t _extint_to_wake = 0;
 static volatile wake_source_e _wake_source = WAKE_FROM_TIMER;
 
 /* Local functions. */
@@ -127,6 +128,7 @@ sleepmod_task(void *arg)
 
 			/* Reset the timer ticks. */
 			_tick_val = 0;
+			_extint_to_wake = 1;
 
 			/*
 			 * Timeout expired. Let's ask all of the
@@ -202,7 +204,25 @@ enable_extint(void)
 {
 	taskENTER_CRITICAL();
 
-	/* Generate external interrupts asynchronously on the falling edges. */
+	/*
+	 * Clear Interrupt Enable bits in the EIMSK register to disable external
+	 * INTn interrupts.
+	 */
+	CLEAR_BIT(EIMSK, INT2);
+	CLEAR_BIT(EIMSK, INT1);
+	CLEAR_BIT(EIMSK, INT0);
+
+	/*
+	 * Adjust configuration flags to generate external interrupts
+	 * asynchronously on the falling edges of the INTn pins.
+	 *
+	 * ISCn1    ISCn0    Description
+	 * -----------------------------
+	 * 0        0        The low level of INTn generates an IRQ.
+	 * 0        1        Any edge of INTn generates an IRQ (async).
+	 * 1        0        The falling edge of INTn generates an IRQ (async).
+	 * 1        1        The rising edge of INTn generates and IRQ (async).
+	 */
 	SET_BIT(EICRA, ISC21);
 	CLEAR_BIT(EICRA, ISC20);
 	SET_BIT(EICRA, ISC11);
@@ -210,6 +230,12 @@ enable_extint(void)
 	SET_BIT(EICRA, ISC01);
 	CLEAR_BIT(EICRA, ISC00);
 
+	/* Clear INTn interrupt flags in the EIFR register. */
+	SET_BIT(EIFR, INTF2);
+	SET_BIT(EIFR, INTF1);
+	SET_BIT(EIFR, INTF0);
+
+	/* Re-enable external INTn interrupts. */
 	SET_BIT(EIMSK, INT2);
 	SET_BIT(EIMSK, INT1);
 	SET_BIT(EIMSK, INT0);
@@ -222,6 +248,15 @@ disable_extint(void)
 {
 	taskENTER_CRITICAL();
 
+	/* Clear INTn interrupt flags in the EIFR register. */
+	SET_BIT(EIFR, INTF2);
+	SET_BIT(EIFR, INTF1);
+	SET_BIT(EIFR, INTF0);
+
+	/*
+	 * Clear Interrupt Enable bits in the EIMSK register to disable external
+	 * INTn interrupts.
+	 */
 	CLEAR_BIT(EIMSK, INT2);
 	CLEAR_BIT(EIMSK, INT1);
 	CLEAR_BIT(EIMSK, INT0);
@@ -319,20 +354,26 @@ ISR(TIMER0_COMPA_vect)
 
 ISR(INT0_vect)
 {
-	/* Resume the suspended Sleep Mode task. */
-	const BaseType_t yield = xTaskResumeFromISR(_task_handle);
+	if (_extint_to_wake != 0) {
+		/* Resume the suspended Sleep Mode task. */
+		const BaseType_t yield = xTaskResumeFromISR(_task_handle);
 
-	/* Set the task wake source. */
-	_wake_source = WAKE_FROM_EXTINT;
+		/* Set the task wake source. */
+		_wake_source = WAKE_FROM_EXTINT;
 
-	if (yield == pdTRUE) {
-		/*
-		 * A context switch should now be performed so the ISR returns
-		 * directly to the resumed task. This is because the resumed
-		 * task had a priority that was equal to or higher than the task
-		 * that is currently in the Running state.
-		 */
-		portYIELD_FROM_ISR();
+		if (yield == pdTRUE) {
+			/*
+			 * A context switch should now be performed so the
+			 * ISR returns directly to the resumed task.
+			 *
+			 * This is because the resumed task had a priority
+			 * that was equal to or higher than the task
+			 * that is currently in the Running state.
+			 */
+			portYIELD_FROM_ISR();
+		}
+
+		_extint_to_wake = 0;
 	}
 }
 
